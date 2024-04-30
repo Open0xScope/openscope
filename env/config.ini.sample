@@ -1,0 +1,18 @@
+[database]
+host = your_host
+port = your_port
+name = default
+user = user_name
+password = password
+
+[miner]
+keyfile = key
+url = http://127.0.0.1:8000/
+
+[validator]
+name = 1
+keyfile = key
+interval = 60
+
+[api]
+url = http://127.0.0.1/
