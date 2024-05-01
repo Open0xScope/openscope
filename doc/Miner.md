@@ -3,7 +3,7 @@
 
 ### Install Dependencies
 
-```
+```bash
 pip install requirements.txt
 ```
 
@@ -53,11 +53,16 @@ OpenScope Testnet netuid:14.
     curl -X POST -H "Content-Type: application/json" -d '{"token": "0x514910771af9ca656af840dff83e8264ecf986ca", "position_manager": "open", "direction": 1}' http://127.0.0.1:8080/trade
     ```
 
+**Trades Structure:**
+- token: the address of the token
+- position_manager: open/close
+1. open: open a position, you should also specify the direction
+2. close: close a position, this means you will liquidate this position and no longer effect by the token price change.
+- direction: 1/-1 - 1 means long, -1 means short
+
 ## Running the Event Subscription Services
 
 You should subscribe event data provide by OpenScope team, these event data is required for tranning event-driven models and direct you to make trades.
-
-Read more about this [here](../README.md)
 
 1. **Subscribing to Historical Events**: To subscribe to historical events, run the following Python script:
 
@@ -65,7 +70,7 @@ Read more about this [here](../README.md)
     python src/openscope/miner/event_subscription.py -history
     ```
 
-[Where the Data goes]
+Once success, you should have all the events under the openscope/resources folder named historic_events.csv
 
 2. **Subscribing to Real-Time Events**: To subscribe to real-time events, run the following Python script:
 
