@@ -1,18 +1,19 @@
-[database]
+[database] 
+## Used for Network Stats, if you only run validator for validation purpose, just ignore
 host = your_host
 port = your_port
 name = default
 user = user_name
 password = password
 
-[miner]
-keyfile = key
+[If you are a miner]
+keyfile = [Your comx key name]
 url = http://127.0.0.1:8000/
 
-[validator]
-name = 1
-keyfile = key
-interval = 60
+[If you are a validator]
+name = [Desire Validator Name]
+keyfile = [Your comx key name]
+interval = [Weight Update Frequency (seconds)] #This is recommend to align with the subnet tempo (800 s)
 
 [api]
-url = http://127.0.0.1/
+url = http://47.236.87.93:8000/ [The trade services connection]

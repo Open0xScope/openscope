@@ -1,4 +1,4 @@
-/env/*.env
+/env/config.ini
 /.tests
 .idea/
 __pycache__
