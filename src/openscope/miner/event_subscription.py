@@ -9,10 +9,12 @@
 # @Desc    :
 # @Cmd     :
 import argparse
+import os.path
 import sys
 import time
 from os.path import dirname, realpath
 
+import pandas as pd
 import requests
 from fastapi import HTTPException
 from retrying import retry
@@ -56,7 +58,13 @@ def get_events(begin_time=None, end_time=None):
 
 def subscription_history():
     log('subscription_history begin')
-    return get_events()
+    data = get_events()
+    historic_events_file = os.path.join(f'{dirname(dirname(dirname(dirname(realpath(__file__)))))}',
+                                        'resources/historic_events.csv ')
+    if data.get('data'):
+        df = pd.DataFrame(data.get('data'))
+        df.to_csv(historic_events_file, index=False, header=True)
+    log('subscription_history end')
 
 
 def main(history_flag, begin_time):
