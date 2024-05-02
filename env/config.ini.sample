@@ -6,11 +6,13 @@ name = default
 user = user_name
 password = password
 
-[If you are a miner]
+[miner]
+## If you are a miner
 keyfile = [Your comx key name]
 url = http://127.0.0.1:8000/
 
-[If you are a validator]
+[validator]
+## If you are a validator
 name = [Desire Validator Name]
 keyfile = [Your comx key name]
 interval = [Weight Update Frequency (seconds)] #This is recommend to align with the subnet tempo (800 s)

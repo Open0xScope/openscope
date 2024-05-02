@@ -52,7 +52,6 @@ def get_events(begin_time=None, end_time=None):
     response.raise_for_status()
     if response.json().get('code') != 200:
         raise HTTPException(status_code=response.json().get('code'), detail=response.json().get('msg'))
-    log(response.text)
     return response.json()
 
 
@@ -64,6 +63,7 @@ def subscription_history():
     if data.get('data'):
         df = pd.DataFrame(data.get('data'))
         df.to_csv(historic_events_file, index=False, header=True)
+        log(f'History events successfully saved under {historic_events_file}')
     log('subscription_history end')
 
 
