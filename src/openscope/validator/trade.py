@@ -3,6 +3,7 @@ import os
 from typing import Dict, List, Union
 
 import requests
+
 from config import Config
 
 DEFAULT_TOKENS = ["0x514910771af9ca656af840dff83e8264ecf986ca","0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
@@ -12,10 +13,10 @@ DEFAULT_TOKENS = ["0x514910771af9ca656af840dff83e8264ecf986ca","0x1f9840a85d5af5
                   "0xa9b1eb5908cfc3cdf91f9b8b3a74108598009096","0x57e114b691db790c35207b2e685d4a43181e6061"]
 
 class Account:
-    def __init__(self,Portfolio={}, AvgPrice = {}, Balance=100, TimeStamp = 0):
+    def __init__(self,Portfolio={}, AvgPrice = None, Balance=100, TimeStamp = 0):
         self.Portfolio = Portfolio
         self.InitialBalance = Balance
-        self.AvgPrice = AvgPrice
+        self.AvgPrice = {} if AvgPrice is None else AvgPrice.copy()
         self.FirstTrade = TimeStamp
 
 def init_account(account_id: str):
@@ -31,7 +32,7 @@ def init_account(account_id: str):
     
 
 class Order:
-    def __init__(self, MinerId="", Token="", isClose = False, Direction=0, Nonce=0, Price=0, TimeStamp=None):
+    def __init__(self, MinerId="", Token="", isClose = False, Direction=0, Nonce=0, Price=0, TimeStamp=0):
         self.MinerId = MinerId
         self.Token = Token
         self.isClose = isClose
@@ -58,6 +59,8 @@ def process_order(accounts: Dict[str, Account], order: Order):
             usd = balance * order.Price
         else:
             avg_price = account.AvgPrice.get(token, 0)
+            if avg_price == 0:
+                return
             usd = (-balance) * avg_price  * (1 -(order.Price-avg_price)/avg_price)
         new_asset["usd"] = usd
         account.Portfolio[token] = new_asset
@@ -76,6 +79,8 @@ def process_order(accounts: Dict[str, Account], order: Order):
                 token_balance = asset.get("asset", 0)
                 if token_balance < 0:
                     avg_price = account.AvgPrice.get(token, 0)
+                    if avg_price == 0:
+                        return
                     usd = (-token_balance) * avg_price  * (1 -(order.Price-avg_price)/avg_price)
                     amount = usd / order.Price
                     new_asset = {
@@ -167,9 +172,11 @@ def get_recent_orders() -> Union[List, None]:
                 Direction=order_data.get("Direction", 0),
                 Nonce=order_data.get("Nonce", 0),
                 Price=order_data.get("TradePrice", 0),
-                TimeStamp=order_data.get("Timestamp", None)
+                TimeStamp=order_data.get("Timestamp", 0)
             )
             order_list.append(order)
+        order_list.sort(key=lambda x: x.TimeStamp)
         return order_list
     else:
         return []
+
