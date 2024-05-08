@@ -23,7 +23,7 @@ Welcome to OpenScope Subnet, where the power of decentralized AI converges with 
 
 ## Overview
 
-Visit [OpenScope Website](open.0xscope.com)
+Visit [OpenScope Website](https://open.0xscope.com/)
 
 In the fast-paced world of cryptocurrency, staying ahead of the game is crucial. Introducing OpenScope, a groundbreaking decentralized AI network that revolutionizes crypto trading like never before.
 
