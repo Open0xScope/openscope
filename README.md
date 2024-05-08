@@ -2,6 +2,8 @@
 
 Welcome to OpenScope Subnet, where the power of decentralized AI converges with the world of cryptocurrency trading. OpenScope is a revolutionary network that leverages 0xScope's comprehensive cryptocurrency event dataset to train advanced AI models for predicting price movements with unprecedented accuracy.
 
+![frontpage](/doc/assets/frontpage.png)
+
 
 ## Table of Contents
 
