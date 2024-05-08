@@ -74,7 +74,7 @@ With OpenScope, you can tap into the collective intelligence of a decentralized 
 ### Install Dependencies
 
 ```bash
-pip install requirements.txt
+pip install -r requirements.txt
 ```
 
 ### Install CommuneX and cli
@@ -145,5 +145,4 @@ Learn the details:
 
 [Running A Validator](/doc/Validator.md)
 
-### Incentives & Dividents
 

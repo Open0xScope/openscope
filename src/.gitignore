@@ -1,4 +1,5 @@
-/env/config.ini
+./env/config.ini
 /.tests
 .idea/
 __pycache__
+./resources/.DS_Store
