@@ -45,7 +45,9 @@ Note that you are required to register the validator first, this is because the 
 comx module register <name> <your_commune_key> --netuid <0xscope netuid>
 ```
 
-The current 0xscope netuid is 14.
+OpenScope netuid:
+
+OpenScope Testnet netuid: 14.
 
 You also need to stake on the subnet to be eligible for setting weights, you can do so by running the following command:
 

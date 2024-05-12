@@ -22,14 +22,16 @@ pip install requirements.txt
     ```ini
     [miner]
     - **keyfile**: comx (created key_name)
-    - **url**: http://127.0.0.1:5005/ (IP address and port where the miner service is running)
+    - **url**: http://127.0.0.1:5005/ (IP address and port where your miner service is running)
     ```
 
 2. **Register the Miner**: Before running the miner, you need to register it. Use the following command:
 
     ```bash
-    comx module register <name> <your_commune_key> --netuid <0xscope netuid>
+    comx module register <name> <your_commune_key> --netuid <OpenScope netuid>
     ```
+
+OpenScope netuid:
 
 OpenScope Testnet netuid:14.
 
@@ -41,7 +43,11 @@ OpenScope Testnet netuid:14.
 
     Note: You need to keep this process alive, running in the background. Some options are `nohup`.
 
-4. **Send a Trade**: You can send an order using the following Python script:
+4. **Send a Trade**: 
+
+Running our basic miner example will automatically help you send the trades.
+
+But you can also send an order to adjust your positions using the following Python script:
 
     ```bash
     python src/openscope/tests/trade.py
@@ -54,6 +60,7 @@ OpenScope Testnet netuid:14.
     ```
 
 **Trades Structure:**
+
 - token: the address of the token
 - position_manager: open/close
 1. open: open a position, you should also specify the direction
@@ -62,9 +69,17 @@ OpenScope Testnet netuid:14.
 
 ## Running the Event Subscription Services
 
-You should subscribe event data provide by OpenScope team, these event data is required for tranning event-driven models and direct you to make trades.
+### Get Tranning Dataset
 
-1. **Subscribing to Historical Events**: To subscribe to historical events, run the following Python script:
+You should obatin the event dataset provide by OpenScope team, these event data is required for tranning event-driven models and direct you to make trades.
+
+You can check our open sourced dataset on huggingface:
+
+[Event Dataset](https://huggingface.co/datasets/0xscope/web3-trading-analysis)
+
+Or you can subscribe the historical events about these 10 tokens for the past 3 months:
+
+To do so, you need to run the following Python script:
 
     ```bash
     python src/openscope/miner/event_subscription.py -history
@@ -72,7 +87,9 @@ You should subscribe event data provide by OpenScope team, these event data is r
 
 Once success, you should have all the events under the openscope/resources folder named historic_events.csv
 
-2. **Subscribing to Real-Time Events**: To subscribe to real-time events, run the following Python script:
+### Subscribing to Real-Time Events: 
+
+To subscribe to real-time events, run the following Python script:
 
     ```bash
     python src/openscope/miner/event_subscription.py

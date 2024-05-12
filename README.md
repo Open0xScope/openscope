@@ -39,27 +39,49 @@ Phase 1 will be the beta version of OpenScope, as a cold start we want to OpenSc
 
 Miners are required to send cryptocurrency trades based on provided live token events.
 
+This can do done by subscribe our live event feed.
+
 These trades should be based on the AI trading model trained with the provided history token events.
 
-Validators will calculated each miner's position value based on each miner's trades in each cycle.
+We have already open sourced all the events tranning data on our huggingface space:
 
-These values will used as each miner's performence to assign weights, the higher the value, the higher the weights.
+[Event Trading Dataset](https://huggingface.co/datasets/0xscope/web3-trading-analysis)
+
+You can also read the descriptions about these data here:
+
+[Event Rules](https://huggingface.co/datasets/0xscope/event_rules)
+
+Validators will calculated each miner's performence score based on each miner's trades in each cycle.
+
+In a nutshell, the scores will be based on:
+
+1. Each miner's ROI
+2. Each miner's win rate
+
+A trade is considered "Win" if the return of this trade after 4 hours is positive.
+
+Win rate is considered important because we expect the trades are based on these events, instead of other trading strategies.
+
+These performences scores will used as each miner's performence to assign weights, the higher the value, the higher the weights.
 
 These weights will eventually decide the incentive of each miner, to be sepecificlly the commune token they gets.
+
 
 ### Phase 2
 
 Start from Phase 2, we will officially full utilize the power of the commune network.
 
-The miner services will no longer make trades as they want, miner module will start to take live token events data as inputs and output trades, just like a general AI model.
+In Phase 1, miners are allowed to make trades manually.
+
+Start from Phase 2, miners' trades should be directly becomes a model's output (events as the input), which means the miner scripts should have their own logic to process the events and convert the signals to trades, just like a general AI model.
 
 Validators will still take trades and perform the usual tasks.
 
 ### Phase 3
 
-Since phase 3, miner's are require to update their modules in each cycle and no longer need to send trades.
+In phase 3, miner's will be require to update their modules in each cycle and no longer need to send trades.
 
-Validators will directly evaluate the module's performence through a set of standards.
+Validators will directly evaluate the module's performence through a set of standards. To be more detailed, validators will consider the miners' module as a general AI model, input events and expect to receive trades.
 
 This will be the final form of the OpenScope Subnet.
 
@@ -130,18 +152,47 @@ My total position value is 1.05 USD, and my current ROI is 5%.
 
 Miner will need to constantly update the positions ([send the trades](/doc/Miner.md#run-the-miner)) and these trades should be based on the live token events.
 
-Miners should also check [what does these event mean](/resources/events.csv)
+Miners should also check:
+
+[Event Rules](https://huggingface.co/datasets/0xscope/event_rules)
 
 OpenScope will provide a complete history token events when you first sign up for being a miner. These events are the trainning dataset for miner's event-driving trading model.
 
+You can also check more comprehensive history event data to train your model!
+
+We have already open sourced all the events tranning data on our huggingface space:
+
+[Event Trading Dataset](https://huggingface.co/datasets/0xscope/web3-trading-analysis)
+
+
+#### Base Miner Examples:
+
+If you want to start the miner first before you have a working strategy model, or you just want to run the miner with easy mode.
+
+The [miner](../openscope/src/openscope/miner) example we provide can help you with than, once you serve the miner, it will run a very basic strategy that send trades each day automatically (we call it IQ50 miner).
+
+Just follow the [guide](../openscope/doc/Miner.md) and you will have a fully funtional miner on the OpenScope subnet.
+
+Notice:
+
+The strategy is completely random so your performence score is fully random too. We wish the best luck of you but suggest you have a stable strategy once you know how everything works. 
 
 ### Join as a validator
 
-Validators query trades from our trade services and use these trades to calculate the miners' position value and ROI.
+Validators query trades from our trade services and use these trades to calculate the miners' performence score.
 
-Then validators should use these data to assign weights to each miners.
+In a nutshell, the scores will be based on:
 
-All of the tasks is written in the validator examples, once you start the process, the code will do everything.
+1. Each miner's ROI
+2. Each miner's Win Rate
+
+A trade is considered "Win" if the return of this trade after 4 hours is positive.
+
+The 
+
+All of the tasks is written in the validator examples, once you start the process, it will help you do everything from querying the trades, calculating performence scores and set the weights.
+
+You can also set the weights manually but we won't suggest that because you want to be align with other validators based on Yuma consensus to get fair dividends
 
 Learn the details:
 
