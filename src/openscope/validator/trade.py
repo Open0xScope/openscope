@@ -13,11 +13,12 @@ DEFAULT_TOKENS = ["0x514910771af9ca656af840dff83e8264ecf986ca","0x1f9840a85d5af5
                   "0xa9b1eb5908cfc3cdf91f9b8b3a74108598009096","0x57e114b691db790c35207b2e685d4a43181e6061"]
 
 class Account:
-    def __init__(self,Portfolio={}, AvgPrice = None, Balance=100, TimeStamp = 0):
+    def __init__(self,Portfolio={}, AvgPrice = None, WinRate = None,Balance=100, TimeStamp = 0):
         self.Portfolio = Portfolio
         self.InitialBalance = Balance
         self.AvgPrice = {} if AvgPrice is None else AvgPrice.copy()
         self.FirstTrade = TimeStamp
+        self.WinRate = {} if WinRate is None else WinRate.copy()
 
 def init_account(account_id: str):
     portfolio = {}
@@ -32,23 +33,35 @@ def init_account(account_id: str):
     
 
 class Order:
-    def __init__(self, MinerId="", Token="", isClose = False, Direction=0, Nonce=0, Price=0, TimeStamp=0):
+    def __init__(self, MinerId="", Token="", isClose = False, Direction=0, Nonce=0, Price=0, Price4H=0, TimeStamp=0):
         self.MinerId = MinerId
         self.Token = Token
         self.isClose = isClose
         self.Direction = Direction
         self.Nonce = Nonce
         self.Price = Price
+        self.Price4H = Price4H
         self.TimeStamp = TimeStamp
     
-def process_order(accounts: Dict[str, Account], order: Order):
+def process_order(accounts: Dict[str, Account], order: Order, latest_price: Dict[str, float]):
     address = order.MinerId
     token = order.Token
+    # validate miner
     if address not in accounts.keys():
         return
     account = accounts.get(address)
     if account.FirstTrade == 0 or account.FirstTrade > order.TimeStamp:
         account.FirstTrade = order.TimeStamp
+    # calculate winrate
+    if order.Price4H == 0:
+        order.Price4H = latest_price.get(token, 0)
+    if order.Price < order.Price4H and order.Direction == 1:
+        account.WinRate[order.Nonce] = 1
+    elif order.Price > order.Price4H and order.Direction == -1:
+        account.WinRate[order.Nonce] = 1
+    else:
+        account.WinRate[order.Nonce] = 0
+    # calculate portfolio
     asset = account.Portfolio.get(token, {})
     if order.isClose:
         new_asset = {
@@ -113,12 +126,10 @@ def process_order(accounts: Dict[str, Account], order: Order):
           order.Token))        
     return
 
-
-
-def evaluate_account(account: Account):
+def evaluate_account(account: Account, prices: Dict[str, float]):
     unrealized: float = 0
     usd_balance: float = 0
-    prices = get_latest_price()
+    # prices = get_latest_price()
     for token, asset in account.Portfolio.items():
         latest_price = prices.get(token, 0)
         token_balance = asset.get("asset", 0)
@@ -132,7 +143,13 @@ def evaluate_account(account: Account):
 
     pnl = usd_balance + unrealized - account.InitialBalance
     roi = pnl / account.InitialBalance * 100
-    return roi  
+    
+    win = 0
+    total_trades = len(account.WinRate.keys())
+    for value in account.WinRate.values():
+        if value > 0:
+            win += 1
+    return roi, float(win/total_trades)  
 
 def get_latest_price() -> Union[dict, None]:
     config_file = 'env/config.ini'
@@ -153,11 +170,16 @@ def get_latest_price() -> Union[dict, None]:
     else:
         return {}
     
-def get_recent_orders() -> Union[List, None]:
+def get_recent_orders(addr: str, pub_key: str, timestamp: int, signature: str) -> Union[List, None]:
     config_file = 'env/config.ini'
     config = Config(config_file)
     url = config.api.get("url") + "getalltrades"
-    params = {}
+    params = {
+        "userId": addr,
+        "pubKey": pub_key,
+        "timestamp": timestamp,
+        "sig": signature
+    }
     resp = requests.get(url, params=params, timeout=25)
     if resp.status_code != 200:
         return []
@@ -172,6 +194,7 @@ def get_recent_orders() -> Union[List, None]:
                 Direction=order_data.get("Direction", 0),
                 Nonce=order_data.get("Nonce", 0),
                 Price=order_data.get("TradePrice", 0),
+                Price4H=order_data.get("TradePrice4H", 0),
                 TimeStamp=order_data.get("Timestamp", 0)
             )
             order_list.append(order)
@@ -179,4 +202,3 @@ def get_recent_orders() -> Union[List, None]:
         return order_list
     else:
         return []
-

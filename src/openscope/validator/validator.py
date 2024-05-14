@@ -9,9 +9,16 @@ from communex.client import CommuneClient
 from communex.compat.key import check_ss58_address, classic_load_key
 from communex.module.module import Module
 from communex.types import Ss58Address
+import psycopg2
+import sr25519
+from psycopg2.extras import execute_values
 from config import Config
 from substrateinterface import Keypair
 from trade import *
+
+from loguru import logger
+
+logger.add("logs/log_{time:YYYY-MM-DD}.log", rotation="1 day")
 
 
 def set_weights(
@@ -28,89 +35,70 @@ def set_weights(
         client (CommuneClient): The CommuneX client.
         key (Keypair): The keypair for signing transactions.
     """
-
-    # cut_weights = cut_to_max_allowed_weights(score_dict)
-    # adjsuted_to_sigmoid = threshold_sigmoid_reward_distribution(cut_weights)
-
     # Create a new dictionary to store the weighted scores
-    weighted_scores: dict[int, int] = {}
-    top_10, top_25, top_50 = 0, 0, 0
-    # Calculate the sum of all inverted scores
-    for score in score_dict.values():
-        if score == 1:
-            top_10 += 1
-        elif score == 2:
-            top_25 += 1
-        elif score == 3:
-            top_50 += 1
+    sorted_score = sorted(score_dict.items(), key=lambda x: x[1], reverse=True)
+    sorted_ids = [key for key, value in sorted_score]
 
-    for uid, score in score_dict.items():
-        if score == 1:
-            weight = int(30 / top_10)
-        elif score == 2:
-            weight = int(60 / top_25)
-        elif score == 3:
-            weight = int(40 / top_50)
-        else:
-            weight = 0
-        # Add the weighted score to the new dictionary
-        weighted_scores[uid] = int(weight)
+    total_ids = len(sorted_ids)
+    half_ids = total_ids // 2
+    min_weight = 50 / half_ids
+    max_weight = 3 * min_weight
+    common_diff = (max_weight - min_weight) / (half_ids - 1)
+    weights = [max_weight - i * common_diff for i in range(half_ids)]
 
+    # Add the weighted score to the new dictionary
+    weighted_scores = {}
+    for i in range(half_ids):
+        weighted_scores[sorted_ids[i]] = int(weights[i])
+    
     remain_weight = 100 - sum(weighted_scores.values())
-    for uid in score_dict.keys():
+    for uid in weighted_scores.keys():
         score = weighted_scores.get(uid, 0)
-        weighted_scores[uid] = int(score +(remain_weight/len(score_dict.keys())))
+        weighted_scores[uid] = int(score +(remain_weight/half_ids))
     
     # filter out 0 weights
-    weighted_scores = {k: v for k, v in weighted_scores.items() if v != 0}
+    weighted_scores = {k: v for k, v in weighted_scores.items() if v > 0}
     uids = list(weighted_scores.keys())        
     weights = list(weighted_scores.values())
 
-    print(f"weights for the following uids: {uids}")
+    logger.info(f"weights for the following uids: {uids}")
     if len(uids) > 0:
         client.vote(key=key, uids=uids, weights=weights, netuid=netuid)
     return weighted_scores
 
 
-def cut_to_max_allowed_weights(
-    score_dict: dict[int, float], config: Config | None = None
-) -> dict[int, float]:
-    """
-    Cuts the scores to the maximum allowed weights.
-
-    Args:
-        score_dict (dict[int, float]): A dictionary mapping miner UIDs to their scores.
-
-    Returns:
-            dict[int, float]: A dictionary mapping miner UIDs to their scores,
-            where the scores have been cut to the maximum allowed weights.
-    """
-
-    # max_allowed_weights = config.max_allowed_weights
-    max_allowed_weights = 100
-    
-    # sort the score by highest to lowest
-    sorted_scores = sorted(score_dict.items(), key=lambda x: x[1], reverse=True)
-
-    # cut to max_allowed_weights
-    cut_scores = sorted_scores[:max_allowed_weights]
-
-    return dict(cut_scores)
+def _format_data(data: Union[List, Dict, tuple, str]) -> bytes:
+    '''
+    format data to str message
+    :param data:
+    :type data:
+    :return:
+    :rtype:
+    '''
+    if isinstance(data, dict):
+        sorted_data = sorted(data.items(), key=lambda x: x[0])
+        # 拼接值作为消息
+        message = ''.join(str(value) for _, value in sorted_data)
+    elif isinstance(data, (list, tuple)):
+        message = ''.join(str(value) for key, value in data)
+    else:
+        message = data
+    return message.encode()
 
 
-def get_netuid(clinet: CommuneClient, subnet_name: str = "oxScope"):
+def get_netuid(client: CommuneClient, subnet_name: str = "OpenScope"):
     """
     Retrieves the network UID of the subnet.
 
     Args:
         client (CommuneClient): The CommuneX client.
-        subnet_name (str, optional): The name of the subnet. Defaults to "oxScope".
+        subnet_name (str, optional): The name of the subnet. Defaults to "OpenScope".
 
     Returns:
         int: The network UID of the subnet.
     """
 
-    subnets = clinet.query_map_subnet_names()
+    subnets = client.query_map_subnet_names()
     for netuid, name in subnets.items():
         if name == subnet_name:
             return netuid
@@ -157,7 +145,6 @@ class TradeValidator(Module):
             raise ValueError(
                 f"validator key {val_ss58} is not registered in subnet"
                 )
-        
         # Validation
         score_dict: dict[int, float] = {}
         
@@ -169,16 +156,26 @@ class TradeValidator(Module):
             accounts[address] = account
             uid_map[address] = uid
             
-        orders = get_recent_orders()
+        
+        timestamp = int(time.time())
+        pub_key = keypair.public_key.hex()
+        msg = f'{val_ss58}{pub_key}{timestamp}'
+        message = _format_data(msg)
+        signature = sr25519.sign(  # type: ignore
+                (keypair.public_key, keypair.private_key), message).hex()  # type: ignore
+        orders = get_recent_orders(val_ss58, pub_key, timestamp, signature)
+        latest_price = get_latest_price()
         for order in orders:
-            process_order(accounts, order)
+            process_order(accounts, order, latest_price)
         roi_data = {}
+        win_data = {}
         for uid, account in accounts.items():
             if account.FirstTrade > 0:
-                roi = evaluate_account(account)
+                roi, win_rate = evaluate_account(account, latest_price)
                 roi_data[uid] = roi
-                print(f"{uid} roi data: {roi}")
-        scores = self.generate_scores(roi_data)
+                win_data[uid] = win_rate
+                logger.info(f"{uid} roi data: {roi}, win rate: {win_rate}")
+        scores = self.generate_scores(roi_data, win_data)
         for address in scores.keys():
             if address != self.key.ss58_address:
             # score has to be lower or eq to 1, as one is the best score
@@ -190,34 +187,24 @@ class TradeValidator(Module):
                 score_dict[uid] = scores.get(address, 0)
 
         if not score_dict:
-            print("No miner managed to give a valid answer")
+            logger.info("No miner managed to give a valid answer")
             return {}
         weighted_scores = set_weights(score_dict, self.netuid, self.client, self.key)
 
         return weighted_scores
 
-    def generate_scores(self, data: dict[str, float]):
+    def generate_scores(self, roi_data: dict[str, float], win_data: dict[str, float]):
         score_dict = {}
-        sorted_addresses = sorted(data.items(), key=lambda x: x[1], reverse=True)
-        total_addresses = len(sorted_addresses)
-        # top_10_percent = int(total_addresses * 0.1)
-        next_15_percent = int(total_addresses * 0.25)
-        next_25_percent = int(total_addresses * 0.5)
-
-        # top_10_addresses = [address[0] for address in sorted_addresses[:top_10_percent]]
-        next_15_addresses = [address[0] for address in sorted_addresses[:next_15_percent]]
-        next_25_addresses = [address[0] for address in sorted_addresses[next_15_percent:next_25_percent]]
-        last_50_addresses = [address[0] for address in sorted_addresses[next_25_percent:]]
-
-
-        # for address in top_10_addresses:
-        #     score_dict[address] = 1
-        for address in next_15_addresses:
-            score_dict[address] = 2
-        for address in next_25_addresses:
-            score_dict[address] = 3
-        for address in last_50_addresses:
-            score_dict[address] = 0
+        # sorted_addresses = sorted(roi_data.items(), key=lambda x: x[1], reverse=True)
+        # total_addresses = len(sorted_addresses)
+        if roi_data:
+            max_score = max(roi_data.values())
+            min_score = min(roi_data.values())
+            for uid, score in roi_data.items():
+                roi_score = float((score - min_score) / (max_score - min_score))
+                win_score = win_data.get(uid, 0)
+                score = 0.8 * roi_score + 0.2 * win_score
+                score_dict[uid] = score
         return score_dict
     
     def upload_data(
@@ -237,11 +224,12 @@ class TradeValidator(Module):
                 # _ = upload_dict()
                 break
             except requests.exceptions.RequestException as e:
-                print(f"Upload attempt {attempt} failed: {e}")
+                logger.info(f"Upload attempt {attempt} failed: {e}")
                 attempt += 1
                 if attempt > max_attempts:
-                    print("Could not upload data. ")
+                    logger.info("Could not upload data. ")
                     break
+    
 
     def validation_loop(self, config: Config | None = None) -> None:
         # Run validation
@@ -259,7 +247,6 @@ if __name__ == '__main__':
     parser.add_argument("--config", type=str, default=None, help="config file path")
     args = parser.parse_args()  
 
-    # 检查用户是否提供了--config参数
     if args.config is None:
         default_config_path = 'env/config.ini'
         config_file = default_config_path
