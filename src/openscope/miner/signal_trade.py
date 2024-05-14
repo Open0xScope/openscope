@@ -24,15 +24,20 @@ from communex.module.module import Module, endpoint  # type: ignore
 from communex.module.server import ModuleServer  # type: ignore
 from fastapi import HTTPException
 from keylimiter import TokenBucketLimiter
+from loguru import logger
 
 sys.path.append(f'{dirname(dirname(dirname(dirname(realpath(__file__)))))}')
+from json.decoder import JSONDecodeError
+
 from config import Config
+from requests.exceptions import HTTPError
 from src.openscope.key import sign_message
-from src.openscope.utils import is_ethereum_address, log
+from src.openscope.utils import is_ethereum_address
 
 
 class TradeModule(ABC, Module):
     trade_url = 'http://47.236.87.93:8000/createtrade'
+    user_trades_url = f"http://47.236.87.93:8000/getusertrades"
 
     def __init__(self) -> None:
         super().__init__()
@@ -46,7 +51,7 @@ class TradeModule(ABC, Module):
     @endpoint
     def trade(self, data: dict):
         try:
-            log(f'data: {data}')
+            logger.info(f'data: {data}')
             self._validate_required_params(data, ['token', 'position_manager', 'direction'])
             miner_id = os.getenv('SIGNAL_TRADE_ADDRESS')
             pub_key = os.getenv('SIGNAL_TRADE_PUBLIC_KEY')
@@ -63,7 +68,7 @@ class TradeModule(ABC, Module):
             sing_msg = f'{miner_id}{pub_key}{nonce}{token}{position_manager}{direction}{timestamp}'
             signature = sign_message(os.getenv('SIGNAL_TRADE_PRIVATE_KEY'), sing_msg)
             trade_data['signature'] = signature
-            log(f'trade_data: {trade_data}')
+            logger.info(f'trade_data: {trade_data}')
             headers = {
                 'Content-Type': 'application/json'
             }
@@ -72,26 +77,53 @@ class TradeModule(ABC, Module):
                 headers=headers,
                 data=json.dumps(trade_data)
             )
-            log(response.text)
+            logger.info(response.text)
             response.raise_for_status()
             if response.json().get('code') != 200:
                 raise HTTPException(status_code=response.json().get('code'), detail=response.json().get('msg'))
+        except HTTPError as http_err:
+            raise HTTPException(status_code=http_err.response.status_code, detail=str(http_err)) from http_err
+        except JSONDecodeError as json_err:
+            raise HTTPException(status_code=500, detail="Failed to decode JSON response") from json_err
         except Exception as e:
-            raise HTTPException(status_code=e.status_code, detail=str(e)) from e  # type: ignore
+            raise HTTPException(status_code=500, detail="An unexpected error occurred") from e
+
+    @endpoint
+    def user_trades(self):
+        try:
+            miner_id = os.getenv('SIGNAL_TRADE_ADDRESS')
+            pub_key = os.getenv('SIGNAL_TRADE_PUBLIC_KEY')
+            timestamp = int(time.time())
+            sing_msg = f'{miner_id}{pub_key}{timestamp}'
+            signature = sign_message(os.getenv('SIGNAL_TRADE_PRIVATE_KEY'), sing_msg)
+            params = {'userId': miner_id, 'pubKey': pub_key, 'timestamp': timestamp, 'sig': signature}
+            response = requests.get(url=self.user_trades_url, params=params)
+            response.raise_for_status()
+            if response.json().get('code') != 200:
+                raise HTTPException(status_code=response.json().get('code'), detail=response.json().get('msg'))
+            return response.json()['data']
+        except HTTPError as http_err:
+            raise HTTPException(status_code=http_err.response.status_code, detail=str(http_err)) from http_err
+        except JSONDecodeError as json_err:
+            raise HTTPException(status_code=500, detail="Failed to decode JSON response") from json_err
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="An unexpected error occurred") from e
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="subscription event")
+    parser = argparse.ArgumentParser(description="Assemble and send trade")
     parser.add_argument("-config_file", type=str,
                         default=os.path.join(f'{dirname(dirname(dirname(dirname(realpath(__file__)))))}',
                                              'env/config.ini'), help=f"config file path")
     args = parser.parse_args()
     config_file = args.config_file
     config = Config(config_file=config_file)
+    logger.add(f"{dirname(realpath(__file__))}/logs/signal_trade_{config.miner.get('keyfile')}_{{time:YYYY-MM-DD}}.log",
+               rotation="1 day")
     keypair = classic_load_key(config.miner.get("keyfile"))
     url = config.miner.get("url")
     parsed_url = urlparse(url)
-    log(f"Running module with key {keypair.ss58_address}")
+    logger.info(f"Running module with key {keypair.ss58_address}")
     os.environ["SIGNAL_TRADE_ADDRESS"] = keypair.ss58_address
     os.environ["SIGNAL_TRADE_PUBLIC_KEY"] = keypair.public_key.hex()
     os.environ["SIGNAL_TRADE_PRIVATE_KEY"] = keypair.private_key.hex()
@@ -103,4 +135,5 @@ if __name__ == '__main__':
     )
     app = server.get_fastapi_app()
     app.add_api_route("/trade", claude.trade, methods=["POST"])
+    app.add_api_route("/user_trades", claude.user_trades, methods=["GET"])
     uvicorn.run(app, host=parsed_url.hostname, port=parsed_url.port)
