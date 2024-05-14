@@ -127,7 +127,21 @@ Bascially, each miner's will have the ability to send "trades" to our trade serv
 
 These trades is based on 10 different cryptocurrencies (token).
 
-You can check them [here](./doc/Miner.md)
+Here is the list of the tokens and their addresses:
+
+| Symbol  | Name      | Chain | Address                                    |
+|---------|-----------|-------|--------------------------------------------|
+| LINK    | Chainlink | ETH   | 0x514910771af9ca656af840dff83e8264ecf986ca |
+| UNI     | Uniswap   | ETH   | 0x1f9840a85d5af5bf1d1762f925bdaddc4201f984 |
+| PEPE    | PEPE      | ETH   | 0x6982508145454ce325ddbe47a25d4ec3d2311933 |
+| FET     | FET       | ETH   | 0xaea46a60368a7bd060eec7df8cba43b7ef41ad85 |
+| Pendle  | PENDLE    | ETH   | 0x808507121b80c02388fad14726482e061b8da827 |
+| SSV     | SSV       | ETH   | 0x9d65ff81a3c488d585bbfb0bfe3c7707c7917f54 |
+| ARKM    | Arkham    | ETH   | 0x6e2a43be0b1d33b726f0ca3b8de60b3482b8b050 |
+| ENS     | ENS       | ETH   | 0xc18360217d8f7ab5e7c516566761ea12ce7f9d72 |
+| Auction | Bounce    | ETH   | 0xa9b1eb5908cfc3cdf91f9b8b3a74108598009096 |
+| ENA     | Ethena     | ETH   | 0x57e114b691db790c35207b2e685d4a43181e6061 |
+
 
 Miners can open positions (open) and close positions (close) based on these tokens.
 
@@ -148,6 +162,7 @@ On Day 0, I only created a $PEPE long position.
 On Day 1, casue $PEPE is up 50%, my $PEPE sub-account is now worth 0.15.
 
 As other sub-accounts stay no change (no open position).
+
 My total position value is 1.05 USD, and my current ROI is 5%.
 
 Miner will need to constantly update the positions ([send the trades](/doc/Miner.md#run-the-miner)) and these trades should be based on the live token events.
