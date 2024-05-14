@@ -2,16 +2,12 @@ import argparse
 import asyncio
 import time
 from datetime import datetime
-from os.path import dirname, realpath
-
 from communex._common import get_node_url
 from communex.client import CommuneClient
 from communex.compat.key import check_ss58_address, classic_load_key
 from communex.module.module import Module
 from communex.types import Ss58Address
-import psycopg2
 import sr25519
-from psycopg2.extras import execute_values
 from config import Config
 from substrateinterface import Keypair
 from trade import *
@@ -56,6 +52,7 @@ def set_weights(
         score = weighted_scores.get(uid, 0)
         weighted_scores[uid] = int(score +(remain_weight/half_ids))
     
+
     # filter out 0 weights
     weighted_scores = {k: v for k, v in weighted_scores.items() if v > 0}
     uids = list(weighted_scores.keys())        
@@ -64,6 +61,10 @@ def set_weights(
     logger.info(f"weights for the following uids: {uids}")
     if len(uids) > 0:
         client.vote(key=key, uids=uids, weights=weights, netuid=netuid)
+    
+    for id in sorted_ids:
+        if id not in weighted_scores.keys():
+            weighted_scores[id] = 0
     return weighted_scores
 
 
@@ -77,7 +78,6 @@ def _format_data(data: Union[List, Dict, tuple, str]) -> bytes:
     '''
     if isinstance(data, dict):
         sorted_data = sorted(data.items(), key=lambda x: x[0])
-        # 拼接值作为消息
         message = ''.join(str(value) for _, value in sorted_data)
     elif isinstance(data, (list, tuple)):
         message = ''.join(str(value) for key, value in data)
@@ -156,6 +156,10 @@ class TradeValidator(Module):
             accounts[address] = account
             uid_map[address] = uid
             
+        # if config.validator.get("name", "") == "validator_1":
+        #     address_list = list(uid_map.keys())
+        #     stake_info = self.client.query_map_stake(syntia_netuid)
+        #     self.upload_whitelist(address_list, stake_info, uid_map) 
         
         timestamp = int(time.time())
         pub_key = keypair.public_key.hex()
@@ -164,7 +168,7 @@ class TradeValidator(Module):
         signature = sr25519.sign(  # type: ignore
                 (keypair.public_key, keypair.private_key), message).hex()  # type: ignore
         orders = get_recent_orders(val_ss58, pub_key, timestamp, signature)
-        latest_price = get_latest_price()
+        latest_price = get_latest_price(val_ss58, pub_key, timestamp, signature)
         for order in orders:
             process_order(accounts, order, latest_price)
         roi_data = {}
@@ -177,14 +181,14 @@ class TradeValidator(Module):
                 logger.info(f"{uid} roi data: {roi}, win rate: {win_rate}")
         scores = self.generate_scores(roi_data, win_data)
         for address in scores.keys():
-            if address != self.key.ss58_address:
+            # if address != self.key.ss58_address:
             # score has to be lower or eq to 1, as one is the best score
-                uid = uid_map[address]
-                if uid is None:
-                    raise ValueError(
-                    f"{address} is not registered in subnet"
-                    )
-                score_dict[uid] = scores.get(address, 0)
+            uid = uid_map[address]
+            if uid is None:
+                raise ValueError(
+                f"{address} is not registered in subnet"
+                )
+            score_dict[uid] = scores.get(address, 0)
 
         if not score_dict:
             logger.info("No miner managed to give a valid answer")

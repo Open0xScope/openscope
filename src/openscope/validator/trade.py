@@ -1,5 +1,4 @@
 import json
-import os
 from typing import Dict, List, Union
 
 import requests
@@ -52,15 +51,17 @@ def process_order(accounts: Dict[str, Account], order: Order, latest_price: Dict
     account = accounts.get(address)
     if account.FirstTrade == 0 or account.FirstTrade > order.TimeStamp:
         account.FirstTrade = order.TimeStamp
-    # calculate winrate
-    if order.Price4H == 0:
-        order.Price4H = latest_price.get(token, 0)
-    if order.Price < order.Price4H and order.Direction == 1:
-        account.WinRate[order.Nonce] = 1
-    elif order.Price > order.Price4H and order.Direction == -1:
-        account.WinRate[order.Nonce] = 1
-    else:
-        account.WinRate[order.Nonce] = 0
+    # calculate winrate, only calculate open order
+    if not order.isClose:
+        if order.Price4H == 0:
+            order.Price4H = latest_price.get(token, 0)
+        if order.Price < order.Price4H and order.Direction == 1:
+            account.WinRate[order.Nonce] = 1
+        elif order.Price > order.Price4H and order.Direction == -1:
+            account.WinRate[order.Nonce] = 1
+        else:
+            account.WinRate[order.Nonce] = 0
+            
     # calculate portfolio
     asset = account.Portfolio.get(token, {})
     if order.isClose:
@@ -151,11 +152,16 @@ def evaluate_account(account: Account, prices: Dict[str, float]):
             win += 1
     return roi, float(win/total_trades)  
 
-def get_latest_price() -> Union[dict, None]:
+def get_latest_price(addr: str, pub_key: str, timestamp: int, signature: str) -> Union[dict, None]:
     config_file = 'env/config.ini'
     config = Config(config_file)    
     url = config.api.get("url") + "getlatestprice" 
-    params = {}
+    params = {
+        "userId": addr,
+        "pubKey": pub_key,
+        "timestamp": timestamp,
+        "sig": signature
+    }    
     resp = requests.get(url, params=params, timeout=25)
     if resp.status_code != 200:
         return {}
