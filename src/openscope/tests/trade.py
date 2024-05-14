@@ -14,7 +14,7 @@ import requests
 
 def main():
     # url = "http://127.0.0.1:8000/trade"
-    url = 'http://localhost:8080/trade'
+    url = 'http://localhost:8000/trade'
     data = {
         "token": "0x6982508145454ce325ddbe47a25d4ec3d2311933",
         "position_manager": "open",
