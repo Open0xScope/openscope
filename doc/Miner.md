@@ -1,4 +1,3 @@
-
 ## Prerequisite
 
 ### Install Dependencies
@@ -22,7 +21,7 @@ pip install requirements.txt
     ```ini
     [miner]
     - **keyfile**: comx (created key_name)
-    - **url**: http://127.0.0.1:5005/ (IP address and port where your miner service is running)
+    - **url**: http://127.0.0.1:8000/ (IP address and port where your miner service is running)
     ```
 
 2. **Register the Miner**: Before running the miner, you need to register it. Use the following command:
@@ -41,9 +40,9 @@ OpenScope Testnet netuid:14.
     python src/openscope/miner/signal_trade.py
     ```
 
-    Note: You need to keep this process alive, running in the background. Some options are `nohup`.
+   Note: You need to keep this process alive, running in the background. Some options are `nohup`.
 
-4. **Send a Trade**: 
+4. **Send a Trade**:
 
 Running our basic miner example will automatically help you send the trades.
 
@@ -56,22 +55,32 @@ But you can also send an order to adjust your positions using the following Pyth
     or
 
     ```bash
-    curl -X POST -H "Content-Type: application/json" -d '{"token": "0x514910771af9ca656af840dff83e8264ecf986ca", "position_manager": "open", "direction": 1}' http://127.0.0.1:8080/trade
+    curl -X POST -H "Content-Type: application/json" -d '{"token": "0x514910771af9ca656af840dff83e8264ecf986ca", "position_manager": "open", "direction": 1}' http://127.0.0.1:8000/trade
     ```
+
+5. **IQ50**: Automatically create trades via IQ50 script:
+   By executing the IQ50 script, trades can be automatically created for 3 random tokens.
+    ```bash
+    python src/openscope/miner/IQ50.py
+    ```
+   Note:  A scheduled task can be created using crontab to execute it at regular intervals.
 
 **Trades Structure:**
 
 - token: the address of the token
 - position_manager: open/close
+
 1. open: open a position, you should also specify the direction
 2. close: close a position, this means you will liquidate this position and no longer effect by the token price change.
+
 - direction: 1/-1 - 1 means long, -1 means short
 
 ## Running the Event Subscription Services
 
 ### Get Tranning Dataset
 
-You should obatin the event dataset provide by OpenScope team, these event data is required for tranning event-driven models and direct you to make trades.
+You should obatin the event dataset provide by OpenScope team, these event data is required for tranning event-driven
+models and direct you to make trades.
 
 You can check our open sourced dataset on huggingface:
 
@@ -87,7 +96,7 @@ To do so, you need to run the following Python script:
 
 Once success, you should have all the events under the openscope/resources folder named historic_events.csv
 
-### Subscribing to Real-Time Events: 
+### Subscribing to Real-Time Events:
 
 To subscribe to real-time events, run the following Python script:
 
