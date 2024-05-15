@@ -1,11 +1,3 @@
-[database] 
-## Used for Network Stats, if you only run validator for validation purpose, just ignore
-host = your_host
-port = your_port
-name = default
-user = user_name
-password = password
-
 [miner]
 ## If you are a miner
 keyfile = [Your comx key name]

@@ -18,14 +18,6 @@ class Config:
             config_file = 'env/config.ini'        
         config = configparser.ConfigParser()
         config.read(config_file)
-        user = config.get("database", "user")
-        password = config.get("database", "password")
-        host = config.get("database", "host")
-        port =  config.get("database", "port")
-        name = config.get("database", "name")
-        self.database = {
-            "uri": f'postgresql://'+user+':'+password+'@'+host+':'+port+'/'+name+'?sslmode=disable'
-        }
         self.validator = {
             "name": config.get("validator","name"),
             "keyfile": config.get("validator", "keyfile"),
