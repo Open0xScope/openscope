@@ -25,7 +25,7 @@ pip install requirements.txt
     [validator]
    name = [Desire Validator Name]
    keyfile = [Your comx key name]
-   interval = [Weight Update Frequency (seconds)] #This is recommend to align with the subnet tempo (800 s)
+   interval = [Weight Update Frequency (seconds)] #This is recommend to align with the subnet tempo 
     
     [api]
     url = http://47.236.87.93:8000/
@@ -45,7 +45,7 @@ Note that you are required to register the validator first, this is because the 
 comx module register <name> <your_commune_key> --netuid <0xscope netuid>
 ```
 
-OpenScope netuid:
+OpenScope netuid: not live yet
 
 OpenScope Testnet netuid: 14.
 
