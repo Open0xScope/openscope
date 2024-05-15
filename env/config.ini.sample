@@ -1,7 +1,7 @@
 [miner]
 ## If you are a miner
 keyfile = [Your comx key name]
-url = http://127.0.0.1:8000/
+url = http://127.0.0.1:5000/ [IP address and port where your miner service is running]
 
 [validator]
 ## If you are a validator

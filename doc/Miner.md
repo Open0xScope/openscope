@@ -30,7 +30,7 @@ pip install requirements.txt
     ```ini
     [miner]
     - **keyfile**: comx (created key_name)
-    - **url**: http://127.0.0.1:8000/ (IP address and port where your miner service is running)
+    - **url**: http://127.0.0.1:5000/ (IP address and port where your miner service is running)
    
     [api]
     - **url**: http://47.236.87.93:8000/ (The trade services connection)
@@ -67,7 +67,7 @@ But you can also send an order to adjust your positions using the following Pyth
     or
 
     ```bash
-    curl -X POST -H "Content-Type: application/json" -d '{"token": "0x514910771af9ca656af840dff83e8264ecf986ca", "position_manager": "open", "direction": 1}' http://127.0.0.1:8000/trade
+    curl -X POST -H "Content-Type: application/json" -d '{"token": "0x514910771af9ca656af840dff83e8264ecf986ca", "position_manager": "open", "direction": 1}' http://127.0.0.1:5000/trade
     ```
 
 5. **IQ50**: Automatically create trades via IQ50 script:
