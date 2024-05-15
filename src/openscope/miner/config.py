@@ -11,11 +11,10 @@
 
 import configparser
 
-# 读取配置文件
 # config = configparser.ConfigParser()
 # config.read("config.ini")
 
-# 定义一个全局配置对象
+
 class Config:
     def __init__(self, config_file):
         if config_file is None:
@@ -25,4 +24,7 @@ class Config:
         self.miner = {
             "keyfile": config.get("miner", "keyfile"),
             "url": config.get("miner", "url"),
+        }
+        self.api = {
+            "url": config.get("api", "url"),
         }

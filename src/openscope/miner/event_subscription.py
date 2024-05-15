@@ -13,6 +13,7 @@ import os.path
 import sys
 import time
 from os.path import dirname, realpath
+from urllib.parse import urljoin
 
 import pandas as pd
 import requests
@@ -20,7 +21,7 @@ from fastapi import HTTPException
 from retrying import retry
 
 sys.path.append(f'{dirname(dirname(dirname(dirname(realpath(__file__)))))}')
-
+from config import Config
 from src.openscope.utils import log
 
 
@@ -36,7 +37,7 @@ def subscription_realtime(begin_time):
 
 @retry(wait_fixed=5000, stop_max_attempt_number=2)
 def get_events(begin_time=None, end_time=None):
-    url = "http://47.236.87.93:8000/getallevents"
+    url = urljoin(server_url, "getallevents")
     headers = {
         'Content-Type': 'application/json'
     }
@@ -79,6 +80,12 @@ if __name__ == '__main__':
     parser.add_argument("-history", action="store_true", help="subscription history event or realtime event by polling")
     parser.add_argument("-begin_time", type=int, default=int(time.time()) - 60, help="begin block_id add num")
     parser.add_argument("-wait_time", type=int, default=300, help="The polling wait time")
+    parser.add_argument("-config_file", type=str,
+                        default=os.path.join(f'{dirname(dirname(dirname(dirname(realpath(__file__)))))}',
+                                             'env/config.ini'), help=f"config file path")
     args = parser.parse_args()
+    config_file = args.config_file
+    config = Config(config_file=config_file)
+    server_url = config.api.get("url")
     WAIT_TIME = args.wait_time
     main(args.history, args.begin_time)

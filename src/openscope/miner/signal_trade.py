@@ -15,7 +15,7 @@ import sys
 import time
 from abc import ABC
 from os.path import dirname, realpath
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import requests
 import uvicorn
@@ -36,11 +36,17 @@ from src.openscope.utils import is_ethereum_address
 
 
 class TradeModule(ABC, Module):
-    trade_url = 'http://47.236.87.93:8000/createtrade'
-    user_trades_url = f"http://47.236.87.93:8000/getusertrades"
 
-    def __init__(self) -> None:
+    def __init__(self, server_url: str) -> None:
+        """
+        Initialize the TradeModule with the server URL.
+
+        Args:
+            server_url (str): The base URL of the server.
+        """
         super().__init__()
+        self.trade_url = urljoin(server_url, 'createtrade')
+        self.user_trades_url = urljoin(server_url, 'getusertrades')
 
     @staticmethod
     def _validate_required_params(data: dict, required_params: list[str]) -> None:
@@ -127,7 +133,8 @@ if __name__ == '__main__':
     os.environ["SIGNAL_TRADE_ADDRESS"] = keypair.ss58_address
     os.environ["SIGNAL_TRADE_PUBLIC_KEY"] = keypair.public_key.hex()
     os.environ["SIGNAL_TRADE_PRIVATE_KEY"] = keypair.private_key.hex()
-    claude = TradeModule()
+    server_url = config.api.get("url")
+    claude = TradeModule(server_url)
     refill_rate = 1 / 400
     bucket = TokenBucketLimiter(10, refill_rate)
     server = ModuleServer(

@@ -24,6 +24,9 @@ pip install requirements.txt
     [miner]
     - **keyfile**: comx (created key_name)
     - **url**: http://127.0.0.1:8000/ (IP address and port where your miner service is running)
+   
+    [api]
+    - **url**: http://47.236.87.93:8000/ (The trade services connection)
     ```
 
 2. **Register the Miner**: Before running the miner, you need to register it. Use the following command:

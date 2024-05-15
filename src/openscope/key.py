@@ -110,15 +110,7 @@ def verify_sign(pubkey: str, data, signature: str) -> bool:
 
 
 def main():
-    data = 'this a test text'
-    public_key, private_key, mnemonic, ss58_address = generate_keys(
-        'ordinary giraffe high drum walk seminar sun snack choice similar float bright')
-    sign = sign_message(
-        private_key,
-        data)
-    print(sign)
-    verify = verify_sign(public_key, data, sign)
-    print(verify)
+    pass
 
 
 if __name__ == '__main__':
