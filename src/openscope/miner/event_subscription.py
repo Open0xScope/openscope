@@ -40,14 +40,13 @@ def get_events(begin_time=None, end_time=None):
     headers = {
         'Content-Type': 'application/json'
     }
-    # 定义查询参数
+
     params = dict()
     if begin_time is not None:
         params['start'] = begin_time
     if end_time is not None:
         params['end'] = end_time
 
-    # 发送 GET 请求
     response = requests.get(url, headers=headers, params=params)
     response.raise_for_status()
     if response.json().get('code') != 200:

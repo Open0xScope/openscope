@@ -54,7 +54,6 @@ def log(
 
 
 def is_ethereum_address(address: str) -> bool:
-    # 以太坊地址是 40 个十六进制字符的字符串
     pattern = re.compile(r"^0x[a-fA-F0-9]{40}$")
     return bool(pattern.match(address))
 

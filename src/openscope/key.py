@@ -52,7 +52,6 @@ def _format_data(data: Union[List, Dict, Tuple, str]) -> bytes:
     '''
     if isinstance(data, dict):
         sorted_data = sorted(data.items(), key=lambda x: x[0])
-        # 拼接值作为消息
         message = ''.join(str(value) for _, value in sorted_data)
     elif isinstance(data, (list, tuple)):
         message = ''.join(str(value) for key, value in data)
@@ -86,12 +85,10 @@ def sign_message(private_key: str, data: Union[List, Dict, Tuple, str]) -> str:
      Returns:
          bytes: signature result
      """
-    # 创建密钥对
     keypair = Keypair.create_from_private_key(bytes.fromhex(private_key), ss58_format=42)
     match keypair.crypto_type:
         case KeypairType.SR25519:
             message = _format_data(data)
-            # 对消息进行签名
             signature: bytes = sr25519.sign(  # type: ignore
                 (keypair.public_key, keypair.private_key), message)  # type: ignore
         case _:
