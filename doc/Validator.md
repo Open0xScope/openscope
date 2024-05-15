@@ -17,7 +17,7 @@ pip install requirements.txt
 
 ## Run the Validator
 
-1. Create a file named config.ini in the env/ folder, you can check the example config.ini.sample for referrence and guidence.
+1. Create a file named config.ini in the env/ folder, you can check the example config.ini.sample for reference and guidance.
 
 1. **Create Configuration File**: Create a file named `config.ini` in the `env/` folder with the following contents:
 
@@ -33,7 +33,7 @@ pip install requirements.txt
 
 2. Connect to the trade services
 
-Each validator should connect to the trade services to obtain miner trades, this is used for evaluate miner's performence.
+Each validator should connect to the trade services to obtain miner trades, this is used for evaluate miner's performance.
 
 Set the [api] url parameters in config.ini file would be enough.
 
@@ -67,7 +67,7 @@ This will start a process that automatically performs all the validator duties.
 
 Note: you need to keep this process alive, running in the background. 
 
-The sucessful serce will show the following messgae:
+The successful serve will show the following message:
 
 ```
 ...
@@ -82,6 +82,6 @@ weights for the following uids: [3, 4, 6, 5]
 ..
 ```
 
-This shows that your validator is calculating the weights for miners based on the miner's position ROI conversion rule. You can still customize your own weight calculatio logic but running the provide services is effortless and keep you aligned with the most validators.
+This shows that your validator is calculating the weights for miners based on the miner's position ROI conversion rule. You can still customize your own weight calculation logic but running the provide services is effortless and keep you aligned with the most validators.
 
 This process will run every config.ini.interval seconds

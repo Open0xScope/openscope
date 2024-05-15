@@ -1,4 +1,6 @@
-## Prerequisite
+
+
+# Prerequisite
 
 ### Install Dependencies
 
@@ -77,9 +79,9 @@ But you can also send an order to adjust your positions using the following Pyth
 
 ## Running the Event Subscription Services
 
-### Get Tranning Dataset
+### Get Training Dataset
 
-You should obatin the event dataset provide by OpenScope team, these event data is required for tranning event-driven
+You should obtain the event dataset provide by OpenScope team, these event data is required for training event-driven
 models and direct you to make trades.
 
 You can check our open sourced dataset on huggingface:
