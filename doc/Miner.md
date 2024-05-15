@@ -2,6 +2,13 @@
 
 # Prerequisite
 
+### Clone the Code
+
+```bash
+git clone git@github.com:Open0xScope/openscope.git
+cd openscope
+```
+
 ### Install Dependencies
 
 ```bash
