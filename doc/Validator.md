@@ -1,5 +1,12 @@
 ## Prerequisite
 
+### Clone the Code
+
+```bash
+git clone git@github.com:Open0xScope/openscope.git
+cd openscope
+```
+
 ### Install Dependencies
 
 ```bash
@@ -64,6 +71,8 @@ python src/openscope/validator/validator.py
 ```
 
 This will start a process that automatically performs all the validator duties.
+
+You can set your own config file by --config your_config_name. The default config file is env/config.ini
 
 Note: you need to keep this process alive, running in the background. 
 
