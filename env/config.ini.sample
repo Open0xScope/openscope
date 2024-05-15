@@ -10,4 +10,4 @@ keyfile = [Your comx key name]
 interval = [Weight Update Frequency (seconds)] #This is recommend to align with the subnet tempo (800 s)
 
 [api]
-url = http://47.236.87.93:8000/ [The trade services connection]
+url = [The trade services url] #For testnet: url = http://47.236.87.93:8000/ 
