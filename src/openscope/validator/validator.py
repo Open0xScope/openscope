@@ -61,10 +61,6 @@ def set_weights(
     logger.info(f"weights for the following uids: {uids}")
     if len(uids) > 0:
         client.vote(key=key, uids=uids, weights=weights, netuid=netuid)
-    
-    for id in sorted_ids:
-        if id not in weighted_scores.keys():
-            weighted_scores[id] = 0
     return weighted_scores
 
 
@@ -155,11 +151,6 @@ class TradeValidator(Module):
             account = init_account(address) 
             accounts[address] = account
             uid_map[address] = uid
-            
-        # if config.validator.get("name", "") == "validator_1":
-        #     address_list = list(uid_map.keys())
-        #     stake_info = self.client.query_map_stake(syntia_netuid)
-        #     self.upload_whitelist(address_list, stake_info, uid_map) 
         
         timestamp = int(time.time())
         pub_key = keypair.public_key.hex()
@@ -181,7 +172,6 @@ class TradeValidator(Module):
                 logger.info(f"{uid} roi data: {roi}, win rate: {win_rate}")
         scores = self.generate_scores(roi_data, win_data)
         for address in scores.keys():
-            # if address != self.key.ss58_address:
             # score has to be lower or eq to 1, as one is the best score
             uid = uid_map[address]
             if uid is None:
@@ -199,8 +189,6 @@ class TradeValidator(Module):
 
     def generate_scores(self, roi_data: dict[str, float], win_data: dict[str, float]):
         score_dict = {}
-        # sorted_addresses = sorted(roi_data.items(), key=lambda x: x[1], reverse=True)
-        # total_addresses = len(sorted_addresses)
         if roi_data:
             max_score = max(roi_data.values())
             min_score = min(roi_data.values())
