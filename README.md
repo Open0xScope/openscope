@@ -184,7 +184,7 @@ We have already open sourced all the events training data on our huggingface spa
 
 If you want to start the miner first before you have a working strategy model, or you just want to run the miner with easy mode.
 
-The [miner](../openscope/src/openscope/miner) example we provide can help you with than, once you serve the miner, it will run a very basic strategy that send trades each day automatically (we call it IQ50 miner).
+The miner example we provide can help you with than, once you serve the miner, it will run a very basic strategy that send trades each day automatically (we call it IQ50 miner).
 
 Just follow the [guide](../openscope/doc/Miner.md) and you will have a fully functional miner on the OpenScope subnet.
 
