@@ -42,7 +42,7 @@ pip install requirements.txt
     comx module register <name> <your_commune_key> --netuid <OpenScope netuid>
     ```
 
-OpenScope netuid: not live yet
+OpenScope netuid: 5
 
 OpenScope Testnet netuid:14.
 

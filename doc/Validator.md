@@ -52,7 +52,7 @@ Note that you are required to register the validator first, this is because the 
 comx module register <name> <your_commune_key> --netuid <0xscope netuid>
 ```
 
-OpenScope netuid: not live yet
+OpenScope netuid: 5.
 
 OpenScope Testnet netuid: 14.
 
