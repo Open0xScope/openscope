@@ -36,7 +36,7 @@ pip install requirements.txt
    isTestnet = 0 #Whether using commune testnet: 1 means testnet; others means mainnet
     
     [api]
-    url = http://47.236.87.93:8000/
+    url: [The trade services url] #For testnet: url = http://47.236.87.93:8000/  mainnet: url = http://8.219.104.233:8000/
     ```
 
 2. Connect to the trade services
