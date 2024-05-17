@@ -33,7 +33,7 @@ pip install requirements.txt
     - **url**: http://127.0.0.1:5000/ (IP address and port where your miner service is running)
    
     [api]
-    - **url**: http://47.236.87.93:8000/ (The trade services connection)
+    - **url**: [The trade services url] #For testnet: url = http://47.236.87.93:8000/  mainnet: url = http://8.219.104.233:8000/
     ```
 
 2. **Register the Miner**: Before running the miner, you need to register it. Use the following command:
