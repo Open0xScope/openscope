@@ -12,7 +12,7 @@ cd openscope
 ### Install Dependencies
 
 ```bash
-pip install requirements.txt
+pip install -r requirements.txt
 ```
 
 ### Install CommuneX and cli
