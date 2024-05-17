@@ -33,6 +33,7 @@ pip install requirements.txt
    name = [Desire Validator Name]
    keyfile = [Your comx key name]
    interval = [Weight Update Frequency (seconds)] #This is recommend to align with the subnet tempo 
+   isTestnet = 0 #Whether using commune testnet: 1 means testnet; others means mainnet
     
     [api]
     url = http://47.236.87.93:8000/
