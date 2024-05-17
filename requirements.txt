@@ -29,7 +29,6 @@ more-itertools==10.2.0
 multidict==6.0.5
 numpy==1.26.4
 pandas==2.2.2
-psycopg2==2.9.9
 py-bip39-bindings==0.1.11
 py-ed25519-zebra-bindings==1.0.1
 py-sr25519-bindings==0.2.0
