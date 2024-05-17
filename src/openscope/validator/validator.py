@@ -245,7 +245,8 @@ if __name__ == '__main__':
     else:
         config_file = args.config
     config = Config(config_file=config_file)
-    c_client = CommuneClient(get_node_url(use_testnet=True))
+    use_testnet = True if config.validator.get("testnet") == "1" else False
+    c_client = CommuneClient(get_node_url(use_testnet=use_testnet))
     synthia_uid = get_netuid(c_client)
     keypair = classic_load_key(config.validator.get("keyfile"))
 

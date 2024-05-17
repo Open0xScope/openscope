@@ -22,6 +22,7 @@ class Config:
             "name": config.get("validator","name"),
             "keyfile": config.get("validator", "keyfile"),
             "interval": config.get("validator", "interval"),
+            "testnet": config.get("validator", "isTestnet"),
         }
         self.api = {
             "url": config.get("api","url"),
