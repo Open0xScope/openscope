@@ -50,7 +50,7 @@ Set the [api] url parameters in config.ini file would be enough.
 Note that you are required to register the validator first, this is because the validator has to be on the network in order to set weights. You can do this by running the following command:
 
 ```
-comx module register <name> <your_commune_key> --netuid <0xscope netuid>
+comx module register <name> <your_commune_key> --netuid <OpenScope netuid>
 ```
 
 OpenScope netuid: 5.
