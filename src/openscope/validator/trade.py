@@ -150,7 +150,8 @@ def evaluate_account(account: Account, prices: Dict[str, float]):
     for value in account.WinRate.values():
         if value > 0:
             win += 1
-    return roi, float(win/total_trades)  
+    win_rate = float(win/total_trades) if total_trades > 0 else 0.0
+    return roi, win_rate  
 
 def get_latest_price(addr: str, pub_key: str, timestamp: int, signature: str) -> Union[dict, None]:
     config_file = 'env/config.ini'
