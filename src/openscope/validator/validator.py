@@ -37,7 +37,7 @@ def set_weights(
 
     total_ids = len(sorted_ids)
     half_ids = total_ids // 2
-    min_weight = 50 / half_ids
+    min_weight = 500 / half_ids
     max_weight = 3 * min_weight
     common_diff = (max_weight - min_weight) / (half_ids - 1)
     weights = [max_weight - i * common_diff for i in range(half_ids)]
@@ -47,7 +47,7 @@ def set_weights(
     for i in range(half_ids):
         weighted_scores[sorted_ids[i]] = int(weights[i])
     
-    remain_weight = 100 - sum(weighted_scores.values())
+    remain_weight = 1000 - sum(weighted_scores.values())
     for uid in weighted_scores.keys():
         score = weighted_scores.get(uid, 0)
         weighted_scores[uid] = int(score +(remain_weight/half_ids))
