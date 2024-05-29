@@ -24,8 +24,6 @@ pip install -r requirements.txt
 
 ## Run the Validator
 
-1. Create a file named config.ini in the env/ folder, you can check the example config.ini.sample for reference and guidance.
-
 1. **Create Configuration File**: Create a file named `config.ini` in the `env/` folder with the following contents:
 
     ```ini
