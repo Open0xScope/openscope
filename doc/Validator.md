@@ -61,6 +61,8 @@ You also need to stake on the subnet to be eligible for setting weights, you can
 comx --testnet balance stake <key-name> <stake amount> <address> --netuid <netuid>
 ```
 
+For now, subnet's 'minimum stake' is zero, but we require each validator to stake at least 1000 $COMAI token to be able to access the trade services.
+
 
 
 4. Serve the validator

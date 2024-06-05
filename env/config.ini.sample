@@ -11,4 +11,6 @@ interval = [Weight Update Frequency (seconds)] #This is recommend to align with 
 isTestnet = 1 #Whether using commune testnet: 1 means testnet; others means mainnet
 
 [api]
-url = [The trade services url] #For testnet: url = http://47.236.87.93:8000/  mainnet: url = http://8.219.104.233:8000/
+url = [The trade services url] 
+For testnet: url = http://47.236.87.93:8000/  
+mainnet: url = http://8.219.104.233:8000/
