@@ -22,8 +22,8 @@ import uvicorn
 from communex.compat.key import classic_load_key
 from communex.module.module import Module, endpoint  # type: ignore
 from communex.module.server import ModuleServer  # type: ignore
+from communex.module._rate_limiters.limiters import IpLimiterParams
 from fastapi import HTTPException
-from keylimiter import TokenBucketLimiter
 from loguru import logger
 
 sys.path.append(f'{dirname(dirname(dirname(dirname(realpath(__file__)))))}')
@@ -135,10 +135,9 @@ if __name__ == '__main__':
     os.environ["SIGNAL_TRADE_PRIVATE_KEY"] = keypair.private_key.hex()
     server_url = config.api.get("url")
     claude = TradeModule(server_url)
-    refill_rate = 1 / 400
-    bucket = TokenBucketLimiter(10, refill_rate)
+
     server = ModuleServer(
-        claude, keypair, ip_limiter=bucket, subnets_whitelist=[3]
+        claude, keypair, limiter=IpLimiterParams(), subnets_whitelist=[3]
     )
     app = server.get_fastapi_app()
     app.add_api_route("/trade", claude.trade, methods=["POST"])
