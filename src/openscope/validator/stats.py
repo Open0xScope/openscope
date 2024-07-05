@@ -3,13 +3,14 @@ import numpy as np
 import inspect
 from scipy.stats import norm
 
-def calculate_serenity(returns, rf=0):
+def calculate_serenity(returns, changes, rf=0):
     """
     Calculates the serenity index score
     """
     dd = to_drawdown_series(returns)
     pitfall = -cvar(dd) / returns.std()
-    return (returns.sum() - rf) / (ulcer_index(returns) * pitfall), np.min(dd)
+    dd2 = to_drawdown_series(changes)
+    return (returns.sum() - rf) / (ulcer_index(returns) * pitfall), np.min(dd2)
 
 def to_drawdown_series(returns):
     """Convert returns series to drawdown series"""

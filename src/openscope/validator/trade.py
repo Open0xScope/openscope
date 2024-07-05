@@ -172,15 +172,25 @@ class AccountManager(LocalStorage):
         #write to disk
         return roi_data, win_data, position_data
     
-    def generate_returns(self) -> Dict[str, List[float]]:
+    def generate_returns(self):
         result = {}
+        result_change = {}
+        mdd_list = []
         for checkpoint in self.checkpoints:
             for id in checkpoint.cur_ret.keys():
                 if id not in result:
                     result[id] = []
+                    result_change[id] = []
+                if id in mdd_list:
+                    continue
+                if checkpoint.cur_ret[id] < 0:
+                    mdd_list.append(id)
+                    self.logger.info(f'The position of {id} is lower than 0')
                 return_change = (checkpoint.cur_ret[id] - checkpoint.prev_ret.get(id, 10.0)) / checkpoint.prev_ret.get(id, 10.0)
-                result[id].append(return_change)
-        return result
+                return_value = (checkpoint.cur_ret[id] - checkpoint.prev_ret.get(id, 10.0))
+                result[id].append(return_value)
+                result_change[id].append(return_change)
+        return result, result_change, mdd_list
     
     def process_order(self, order: Order, latest_price: Dict[str, float]):
         address = order.MinerId
@@ -292,8 +302,8 @@ class AccountManager(LocalStorage):
                         account.Leverage[token] = order.Leverage 
 
         self.accounts[address] = account
-        print("Finished processing order, token_address: {}".format(
-              order.Token))        
+        # print("Finished processing order, token_address: {}".format(
+        #       order.Token))        
         return
 
 

@@ -198,10 +198,14 @@ class TradeValidator(Module):
                                                                                        keypair)
         serenity_data = {}
         mdd_data = {}
-        return_data = self.account_manager.generate_returns()
+        return_data, change_data, mdd_list = self.account_manager.generate_returns()
         for id, return_list in return_data.items():
+            change_list = change_data[id]
+            if id in mdd_list:
+                continue
             returns = pandas.Series(return_list)
-            serenity_value, mdd_value = calculate_serenity(returns)
+            changes = pandas.Series(change_list)
+            serenity_value, mdd_value = calculate_serenity(returns, changes)
             if numpy.isnan(serenity_value):
                 serenity_value = 0.0
             serenity_data[id] = float(serenity_value)
