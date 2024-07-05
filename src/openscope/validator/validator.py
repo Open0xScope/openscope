@@ -10,13 +10,13 @@ from communex.client import CommuneClient
 from communex.module.module import Module
 from communex.compat.key import check_ss58_address
 from communex.types import Ss58Address
-from substrateinterface import Keypair 
+from substrateinterface import Keypair
 from communex._common import get_node_url
 from communex.compat.key import classic_load_key
 from os.path import dirname, realpath
 from loguru import logger
 from psycopg2.extras import execute_values
-
+from threading import Timer
 
 from config import Config
 from stats import calculate_serenity
@@ -27,10 +27,14 @@ logger.add("logs/log_{time:YYYY-MM-DD}.log", rotation="1 day")
 
 ELIMINATE_MINER = dict()
 PROTECT_ADDRESS = list()
+NOT_ACTIVE_ELIMINATION_TARGET_TIME = 0
+COPY_TRADING_ELIMINATION_TARGET_TIME = 0
+PROTECT_ADDRESS_TARGET_TIME = 0
+MDD_ELIMINATION_TARGET_TIME = 0
 
 
 def set_weights(
-    score_dict: dict[int, float], netuid: int, client: CommuneClient, key: Keypair, elimated_ids: list[int]
+        score_dict: dict[int, float], netuid: int, client: CommuneClient, key: Keypair, elimated_ids: list[int]
 ) -> None:
     """
     Set weights for miners based on their scores.
@@ -58,7 +62,7 @@ def set_weights(
         top_10_threshold = 10
         top_25_threshold = 25
         top_50_threshold = 50
-    
+
     # Add the weighted score to the new dictionary
     weighted_scores = {}
     for i, (miner_uid, score) in enumerate(sorted_score):
@@ -67,39 +71,43 @@ def set_weights(
             weight_share = score / total_score_in_group
             weighted_scores[miner_uid] = int(weight_share * 0.25 * 1000)
         elif i < top_10_threshold:
-            total_score_in_group = sum(filtered_score_dict[uid[0]] for uid in sorted_score[top_3_threshold:top_10_threshold])
+            total_score_in_group = sum(
+                filtered_score_dict[uid[0]] for uid in sorted_score[top_3_threshold:top_10_threshold])
             weight_share = score / total_score_in_group
             weighted_scores[miner_uid] = int(weight_share * 0.25 * 1000)
         elif i < top_25_threshold:
-            total_score_in_group = sum(filtered_score_dict[uid[0]] for uid in sorted_score[top_10_threshold:top_25_threshold])
+            total_score_in_group = sum(
+                filtered_score_dict[uid[0]] for uid in sorted_score[top_10_threshold:top_25_threshold])
             weight_share = score / total_score_in_group
             weighted_scores[miner_uid] = int(weight_share * 0.25 * 1000)
         elif i < top_50_threshold:
-            total_score_in_group = sum(filtered_score_dict[uid[0]] for uid in sorted_score[top_25_threshold:top_50_threshold])
+            total_score_in_group = sum(
+                filtered_score_dict[uid[0]] for uid in sorted_score[top_25_threshold:top_50_threshold])
             weight_share = score / total_score_in_group
             weighted_scores[miner_uid] = int(weight_share * 0.25 * 1000)
         else:
             weighted_scores[miner_uid] = 0
-    
+
     remain_weight = 1000 - sum(weighted_scores.values())
     for item in sorted_score[:top_50_threshold]:
-        uid = item[0]        
+        uid = item[0]
         score = weighted_scores.get(uid, 0)
-        weighted_scores[uid] = int(score +(remain_weight/top_50_threshold))
-    
+        weighted_scores[uid] = int(score + (remain_weight / top_50_threshold))
+
     # filter out 0 weights
     weighted_scores = {k: v for k, v in weighted_scores.items() if v > 0}
-    uids = list(weighted_scores.keys())        
+    uids = list(weighted_scores.keys())
     weights = list(weighted_scores.values())
 
     logger.info(f"weights for the following uids: {uids}")
     if len(uids) > 0:
         client.vote(key=key, uids=uids, weights=weights, netuid=netuid)
-    
+
     for id in sorted_ids:
         if id not in weighted_scores.keys():
             weighted_scores[id] = 0
     return weighted_scores
+
 
 def get_netuid(client: CommuneClient, subnet_name: str = "OpenScope"):
     """
@@ -125,12 +133,12 @@ class TradeValidator(Module):
     """
 
     def __init__(
-        self,
-        key: Keypair,
-        netuid: int,
-        client: CommuneClient,
-        account_manager: AccountManager,
-        call_timeout: int = 60,
+            self,
+            key: Keypair,
+            netuid: int,
+            client: CommuneClient,
+            account_manager: AccountManager,
+            call_timeout: int = 60,
     ) -> None:
         super().__init__()
         self.client = client
@@ -153,7 +161,7 @@ class TradeValidator(Module):
         return module_addreses
 
     async def validate_step(
-        self, config: Config, netuid: int
+            self, config: Config, netuid: int
     ) -> list[dict[str, str]]:
         # modules_adresses = self.get_modules(self.client, netuid)
         modules_keys = self.client.query_map_key(netuid)
@@ -161,33 +169,34 @@ class TradeValidator(Module):
         if val_ss58 not in modules_keys.values():
             raise ValueError(
                 f"validator key {val_ss58} is not registered in subnet"
-                )
+            )
         # Validation
         score_dict: dict[int, float] = {}
-        
+
         # == Validation loop / Scoring ==
         self.account_manager.load_positions_in_memory()
         uid_map = {}
         for uid, address in modules_keys.items():
             account = self.account_manager.accounts.get(address, {})
             if account == {}:
-                account = init_account() 
+                account = init_account()
                 self.account_manager.accounts[address] = account
             uid_map[address] = uid
-          
+
         timestamp = int(time.time())
         tradetime = self.account_manager.get_update_time()
         pub_key = keypair.public_key.hex()
         msg = f'{val_ss58}{pub_key}{timestamp}'
         message = format_data(msg)
         signature = sr25519.sign(  # type: ignore
-                (keypair.public_key, keypair.private_key), message).hex()  # type: ignore
+            (keypair.public_key, keypair.private_key), message).hex()  # type: ignore
         orders = get_recent_orders(val_ss58, pub_key, timestamp, signature, tradetime)
         self.account_manager.group_orders_by_day(orders=orders)
         latest_price = get_latest_price(val_ss58, pub_key, timestamp, signature)
 
-        roi_data, win_data, position_data = self.account_manager.process_orders_by_day(latest_price, val_ss58, pub_key, keypair)
-        serenity_data ={}
+        roi_data, win_data, position_data = self.account_manager.process_orders_by_day(latest_price, val_ss58, pub_key,
+                                                                                       keypair)
+        serenity_data = {}
         mdd_data = {}
         return_data = self.account_manager.generate_returns()
         for id, return_list in return_data.items():
@@ -203,14 +212,14 @@ class TradeValidator(Module):
             uid = uid_map[address]
             if uid is None:
                 raise ValueError(
-                f"{address} is not registered in subnet"
+                    f"{address} is not registered in subnet"
                 )
             score_dict[uid] = scores.get(address, 0)
 
         if not score_dict:
             logger.info("No miner managed to give a valid answer")
             return {}
-        
+
         elimated_ids = []
         for address, status in ELIMINATE_MINER.items():
             if not status:
@@ -242,7 +251,76 @@ class TradeValidator(Module):
                 score_dict[uid] = score
         return score_dict
 
+    def task_get_protect_address(self):
+        global ELIMINATE_MINER, PROTECT_ADDRESS
+        logger.info(f"task_get_protect_address begin")
+        PROTECT_ADDRESS = get_protected_miner(keypair)
+        logger.info(f'PROTECT_ADDRESS: {len(PROTECT_ADDRESS)}')
+        for address in PROTECT_ADDRESS:
+            ELIMINATE_MINER[address] = False
+        save_eliminate_data(ELIMINATE_MINER)
+        logger.info(f"task_get_protect_address end")
+
+    def task_mdd_elimination(self):
+        global ELIMINATE_MINER
+        logger.info(f"task_mdd_elimination begin")
+        address = mdd_elimination(checkpoints=account_manager.checkpoints)
+        logger.info(f'mdd_elimination: {address}')
+        eliminate_address = set(address) - set(PROTECT_ADDRESS)
+        for x in eliminate_address:
+            ELIMINATE_MINER[x] = True
+        logger.info(f"task_mdd_elimination end")
+
+    def task_copy_trading_elimination(self):
+        global ELIMINATE_MINER
+        logger.info(f"task_copy_trading_elimination begin")
+        copy_maps = copy_trading_elimination(keypair)
+        logger.info(f'copy_trading_elimination: {copy_maps}')
+        eliminate_address = set(copy_maps.keys()) - set(PROTECT_ADDRESS)
+        for x in eliminate_address:
+            ELIMINATE_MINER[x] = True
+        logger.info(f"task_copy_trading_elimination end")
+
+    def task_not_active_elimination(self):
+        global ELIMINATE_MINER
+        logger.info(f"task_not_active_elimination begin")
+        address = not_active_elimination(keypair)
+        logger.info(f'not_active_elimination: {address}')
+        eliminate_address = set(address) - set(PROTECT_ADDRESS)
+        for x in eliminate_address:
+            ELIMINATE_MINER[x] = True
+        logger.info(f"task_not_active_elimination end")
+
+    def timer_func(self):
+        global NOT_ACTIVE_ELIMINATION_TARGET_TIME, COPY_TRADING_ELIMINATION_TARGET_TIME, PROTECT_ADDRESS_TARGET_TIME, MDD_ELIMINATION_TARGET_TIME
+        current_time = int(time.time())
+        logger.info(f'''timer_func begin''')
+        if current_time >= PROTECT_ADDRESS_TARGET_TIME:
+            self.task_get_protect_address()
+            PROTECT_ADDRESS_TARGET_TIME = current_time + 300
+
+        if current_time >= NOT_ACTIVE_ELIMINATION_TARGET_TIME:
+            self.task_not_active_elimination()
+            NOT_ACTIVE_ELIMINATION_TARGET_TIME = current_time + 900
+
+        if current_time >= COPY_TRADING_ELIMINATION_TARGET_TIME:
+            self.task_copy_trading_elimination()
+            COPY_TRADING_ELIMINATION_TARGET_TIME = current_time + 86400
+
+        if current_time >= MDD_ELIMINATION_TARGET_TIME:
+            self.task_mdd_elimination()
+            MDD_ELIMINATION_TARGET_TIME = current_time + 86400
+        logger.info(f'''timer_func end:
+NOT_ACTIVE_ELIMINATION_TARGET_TIME: {NOT_ACTIVE_ELIMINATION_TARGET_TIME}
+COPY_TRADING_ELIMINATION_TARGET_TIME: {COPY_TRADING_ELIMINATION_TARGET_TIME}
+PROTECT_ADDRESS_TARGET_TIME: {PROTECT_ADDRESS_TARGET_TIME}
+MDD_ELIMINATION_TARGET_TIME: {MDD_ELIMINATION_TARGET_TIME}''')
+        Timer(300, self.timer_func).start()
+
     def validation_loop(self, config: Config | None = None) -> None:
+        global ELIMINATE_MINER
+        ELIMINATE_MINER = get_eliminate_data()
+        self.timer_func()
         # Run validation
         while True:
             start_time = time.time()
@@ -252,11 +330,12 @@ class TradeValidator(Module):
             print(f"vote data: {weighted_scores}")
             invertal = int(config.validator.get("interval"))
             time.sleep(invertal)
-                
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="transaction validator")
     parser.add_argument("--config", type=str, default=None, help="config file path")
-    args = parser.parse_args()  
+    args = parser.parse_args()
 
     if args.config is None:
         default_config_path = 'env/config.ini'
@@ -271,10 +350,10 @@ if __name__ == '__main__':
 
     account_manager = AccountManager(config=config, logger=logger)
     validator = TradeValidator(
-        keypair, 
-        net_uid, 
+        keypair,
+        net_uid,
         c_client,
-        account_manager, 
+        account_manager,
         call_timeout=60,
     )
     validator.validation_loop(config)
