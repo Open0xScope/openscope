@@ -12,6 +12,7 @@ import argparse
 import json
 import os
 import sys
+import re
 import time
 from abc import ABC
 from os.path import dirname, realpath
@@ -54,6 +55,16 @@ class TradeModule(ABC, Module):
         if missing_params:
             raise HTTPException(status_code=400, detail=f"Missing required parameters: {missing_params}")
 
+    @staticmethod
+    def _is_valid_leverage(input_str: str | int | float) -> bool:
+        try:
+            number = float(input_str)
+            if 0.1 <= number <= 20 and re.match(r"^\d+(\.\d{1})?$", str(input_str)):
+                return True
+        except ValueError:
+            pass
+        return False
+
     @endpoint
     def trade(self, data: dict):
         try:
@@ -65,13 +76,21 @@ class TradeModule(ABC, Module):
             token = data['token'].lower()
             if not is_ethereum_address(token):
                 raise HTTPException(status_code=400, detail=f"The token: {token} is an invalid EVM address")
+
+            leverage = data.get('leverage', 1)
+            if not self._is_valid_leverage(leverage):
+                raise HTTPException(status_code=400,
+                                    detail=f"leverage: {leverage} is an invalid leverage, Need a float value between 0.1 and 20, inclusive, with a precision of 0.1.Examples of valid values: 0.1, 0.2, 1.0, 5.5, 19.9, 20.0.")
+            leverage = int(leverage) if int(leverage) == leverage else float(leverage)
             position_manager = data['position_manager']
             direction = int(data['direction'])
             timestamp = nonce // 1000
 
             trade_data = {'miner_id': miner_id, 'pub_key': pub_key, 'nonce': nonce, 'token': token,
-                          'position_manager': position_manager, 'direction': direction, 'timestamp': timestamp}
-            sing_msg = f'{miner_id}{pub_key}{nonce}{token}{position_manager}{direction}{timestamp}'
+                          'position_manager': position_manager, 'direction': direction, 'timestamp': timestamp,
+                          'leverage': leverage}
+
+            sing_msg = f'{miner_id}{pub_key}{nonce}{token}{position_manager}{direction}{timestamp}{leverage}'
             signature = sign_message(os.getenv('SIGNAL_TRADE_PRIVATE_KEY'), sing_msg)
             trade_data['signature'] = signature
             logger.info(f'trade_data: {trade_data}')
