@@ -17,7 +17,8 @@ class LocalStorage:
     def load_positions_in_memory(self):
         location = DEFAULT_ACCOUNTS_LOCATION
         data = self._get_json_file(location)
-        self.accounts = data.get("accounts", {})
+        if data:
+            self.accounts = data.get("accounts", {})
         return data
 
     def write_positions_to_disk(self, data:str):
