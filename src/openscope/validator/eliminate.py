@@ -136,7 +136,7 @@ def copy_trading_elimination(keypair) -> dict:
     return result
 
 
-def filter_groups(group):
+def filter_groups_mdd_elimination(group):
     consecutive_count = 0
     total_count = 0
     for roi in group['roi']:
@@ -174,7 +174,7 @@ def mdd_elimination(checkpoints) -> list:
     filtered_df = df[df['last_update'] >= check_time]
     filtered_df = filtered_df.sort_values(by='last_update', ascending=False).groupby(
         ['address', 'last_update_day']).first().reset_index()
-    filtered_result = filtered_df.groupby('address').filter(filter_groups)
+    filtered_result = filtered_df.groupby('address').filter(filter_groups_mdd_elimination)
     unique_miner_ids = list(filtered_result['address'].unique())
     return unique_miner_ids
 
@@ -189,7 +189,7 @@ def get_protected_miner(keypair) -> list:
 def save_eliminate_data(eliminate_data, file=None):
     if not file:
         file = os.path.join(dirname(realpath(__file__)), 'eliminate.json')
-    data = [key for key, value in eliminate_data.items() if value]
+    data = {key: value for key, value in eliminate_data.items() if value['status']}
     with open(file, 'w') as fd:
         fd.write(json.dumps(data))
 
@@ -201,18 +201,19 @@ def get_eliminate_data(file=None):
     if not os.path.exists(file):
         return result
     with open(file, 'r') as fd:
-        data = json.loads(fd.read())
-    result = {x: True for x in data}
+        data = fd.read() or '{}'
+        result = json.loads(data)
     return result
 
 
 def main():
     keypair = classic_load_key('test1')
-    print(not_active_elimination(keypair))
+    # print(not_active_elimination(keypair))
     # print(get_protected_miner(keypair))
     # print(get_eliminate_data())
     # print(copy_trading_elimination(keypair))
     # save_eliminate_data({'a':True,'b':False})
+    print(mdd_elimination([]))
 
 
 if __name__ == '__main__':

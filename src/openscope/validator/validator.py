@@ -26,6 +26,7 @@ from eliminate import *
 logger.add("logs/log_{time:YYYY-MM-DD}.log", rotation="1 day")
 
 ELIMINATE_MINER = dict()
+ELIMINATE_FILE = str()
 PROTECT_ADDRESS = list()
 NOT_ACTIVE_ELIMINATION_TARGET_TIME = 0
 COPY_TRADING_ELIMINATION_TARGET_TIME = 0
@@ -226,7 +227,7 @@ class TradeValidator(Module):
 
         elimated_ids = []
         for address, status in ELIMINATE_MINER.items():
-            if not status:
+            if not status['status']:
                 continue
             uid = uid_map[address]
             if uid is None:
@@ -255,44 +256,74 @@ class TradeValidator(Module):
                 score_dict[uid] = score
         return score_dict
 
+    @staticmethod
+    def unixtime2str(unixtime=None, t_format='%Y-%m-%d %H:%M:%S', utc=True):
+        if unixtime is None:
+            unixtime = datetime.now().timestamp()
+        unixtime = int(unixtime)
+        if utc:
+            ret = datetime.utcfromtimestamp(unixtime).strftime(t_format)
+        else:
+            ret = datetime.fromtimestamp(unixtime).strftime(t_format)
+        return ret
+
     def task_get_protect_address(self):
         global ELIMINATE_MINER, PROTECT_ADDRESS
         logger.info(f"task_get_protect_address begin")
         PROTECT_ADDRESS = get_protected_miner(keypair)
         logger.info(f'PROTECT_ADDRESS: {len(PROTECT_ADDRESS)}')
         for address in PROTECT_ADDRESS:
-            ELIMINATE_MINER[address] = False
-        save_eliminate_data(ELIMINATE_MINER)
+            ELIMINATE_MINER[address] = {'status': False, 'timestamp': self.unixtime2str(), 'reason': 'protect_address'}
+        save_eliminate_data(ELIMINATE_MINER, file=ELIMINATE_FILE)
         logger.info(f"task_get_protect_address end")
 
     def task_mdd_elimination(self):
         global ELIMINATE_MINER
         logger.info(f"task_mdd_elimination begin")
         address = mdd_elimination(checkpoints=account_manager.checkpoints)
-        logger.info(f'mdd_elimination: {address}')
+        roi_data = {}
+        if address:
+            for value in account_manager.checkpoints:
+                last_update = value.last_update
+                rois = value.roi
+                last_update_day = self.unixtime2str(last_update, t_format='%Y-%m-%d')
+                roi_data[last_update_day] = {}
+                for k, roi in rois.items():
+                    if k in address:
+                        roi_data[last_update_day][k] = roi
+
+            logger.info(f'elimination:: mdd_elimination: {address}, roi_data: {roi_data}')
+        else:
+            logger.info(f'mdd_elimination get nothing')
         eliminate_address = set(address) - set(PROTECT_ADDRESS)
         for x in eliminate_address:
-            ELIMINATE_MINER[x] = True
+            ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'mdd_elimination'}
         logger.info(f"task_mdd_elimination end")
 
     def task_copy_trading_elimination(self):
         global ELIMINATE_MINER
         logger.info(f"task_copy_trading_elimination begin")
         copy_maps = copy_trading_elimination(keypair)
-        logger.info(f'copy_trading_elimination: {copy_maps}')
+        if copy_maps:
+            logger.info(f'elimination:: copy_trading_elimination: {copy_maps}')
+        else:
+            logger.info(f'copy_trading_elimination get nothing')
         eliminate_address = set(copy_maps.keys()) - set(PROTECT_ADDRESS)
         for x in eliminate_address:
-            ELIMINATE_MINER[x] = True
+            ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'copy_trading_elimination'}
         logger.info(f"task_copy_trading_elimination end")
 
     def task_not_active_elimination(self):
         global ELIMINATE_MINER
         logger.info(f"task_not_active_elimination begin")
         address = not_active_elimination(keypair)
-        logger.info(f'not_active_elimination: {address}')
+        if address:
+            logger.info(f'elimination:: not_active_elimination: {address}')
+        else:
+            logger.info(f'not_active_elimination get nothing')
         eliminate_address = set(address) - set(PROTECT_ADDRESS)
         for x in eliminate_address:
-            ELIMINATE_MINER[x] = True
+            ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'not_active_elimination'}
         logger.info(f"task_not_active_elimination end")
 
     def timer_func(self):
@@ -322,8 +353,9 @@ MDD_ELIMINATION_TARGET_TIME: {MDD_ELIMINATION_TARGET_TIME}''')
         Timer(300, self.timer_func).start()
 
     def validation_loop(self, config: Config | None = None) -> None:
-        global ELIMINATE_MINER
-        ELIMINATE_MINER = get_eliminate_data()
+        global ELIMINATE_MINER, ELIMINATE_FILE
+        ELIMINATE_FILE = os.path.join(dirname(realpath(__file__)), f'eliminate_{config.validator.get("keyfile")}.json')
+        ELIMINATE_MINER = get_eliminate_data(file=ELIMINATE_FILE)
         self.timer_func()
         # Run validation
         while True:
