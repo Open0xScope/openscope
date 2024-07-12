@@ -357,7 +357,7 @@ MDD_ELIMINATION_TARGET_TIME: {MDD_ELIMINATION_TARGET_TIME}''')
         ELIMINATE_FILE = os.path.join(dirname(realpath(__file__)), f'eliminate_{config.validator.get("keyfile")}.json')
         ELIMINATE_MINER = get_eliminate_data(file=ELIMINATE_FILE)
         self.timer_func()
-        start_task_mdd_elimination = False
+        start_task_flag = False
         # Run validation
         while True:
             start_time = time.time()
@@ -365,10 +365,10 @@ MDD_ELIMINATION_TARGET_TIME: {MDD_ELIMINATION_TARGET_TIME}''')
             print(f"check validator time: {formatted_start_time}")
             weighted_scores = asyncio.run(self.validate_step(config, self.netuid))
             print(f"vote data: {weighted_scores}")
-            if not start_task_mdd_elimination:
+            if not start_task_flag:
                 logger.info(f'start task exec task_mdd_elimination')
                 self.task_mdd_elimination()
-                start_task_mdd_elimination = True
+                start_task_flag = True
             invertal = int(config.validator.get("interval"))
             time.sleep(invertal)
 
