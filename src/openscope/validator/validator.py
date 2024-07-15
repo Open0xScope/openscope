@@ -33,6 +33,7 @@ NOT_ACTIVE_ELIMINATION_TARGET_TIME = 0
 COPY_TRADING_ELIMINATION_TARGET_TIME = 0
 PROTECT_ADDRESS_TARGET_TIME = 0
 MDD_ELIMINATION_TARGET_TIME = 0
+DEFAULT_WEIGHT = 5
 
 
 def set_weights(
@@ -236,7 +237,16 @@ class TradeValidator(Module):
                 logger.info(f"{address} is not registered in subnet")
                 continue
             elimated_ids.append(uid)
-        weighted_scores = set_weights(score_dict, self.netuid, self.client, self.key, elimated_ids)
+        if len(self.account_manager.checkpoints) > 2:
+            weighted_scores = set_weights(score_dict, self.netuid, self.client, self.key, elimated_ids)
+        else:
+            weighted_scores = {}
+            for uid in modules_keys.keys():
+                weighted_scores[uid] = DEFAULT_WEIGHT
+            uids = list(weighted_scores.keys())
+            weights = list(weighted_scores.values())
+            logger.info(f"weights for the following uids: {uids}")
+            self.client.vote(key=self.key, uids=uids, weights=weights, netuid=self.netuid)
         return weighted_scores, modules_keys, win_data, roi_data
 
     def generate_scores(self, mdd_data: dict[str, float], serenity_data: dict[str, float]):

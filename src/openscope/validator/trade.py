@@ -72,12 +72,13 @@ class Order:
         self.Leverage = Leverage
 
 class PositionCheckpoint:
-    def __init__(self, last_update: int, cur_ret: Dict[str, float] = None, prev_ret: Dict[str, float] = None, roi: Dict[str, float] = None, orders: List[Order] = []):
+    def __init__(self, last_update: int, cur_ret: Dict[str, float] = None, prev_ret: Dict[str, float] = None, roi: Dict[str, float] = None, orders: List[Order] = [],  processed: List[str] = []):
         self.last_update = last_update
         self.cur_ret = {} if cur_ret is None else cur_ret.copy()
         self.prev_ret = {} if prev_ret is None else prev_ret.copy()
         self.roi = {} if roi is None else roi.copy()
         self.orders = orders
+        self.processed = processed
         self.is_update = False
         
 class AccountManager(LocalStorage):
@@ -145,7 +146,9 @@ class AccountManager(LocalStorage):
         win_data = {}
         position_data = {}
         for order in checkpoint.orders:
-            self.process_order(order, latest_price)
+            if order.Nonce not in checkpoint.processed:
+                self.process_order(order, latest_price)
+                checkpoint.processed.append(order.Nonce)
         for id, account in self.accounts.items():
             if account.FirstTrade > 0:
                 roi, win_rate, position = evaluate_account(account, latest_price)
@@ -163,6 +166,7 @@ class AccountManager(LocalStorage):
                 self.logger.info(f"{id} roi data: {roi}, latest position_value: {position_value}")
         checkpoint.is_update = True
         
+        self.update_time = checkpoint.last_update
         # delete old checkpoint
         one_month_ago = datetime.now(tz=UTC) - timedelta(days=30)
         one_month_ago_timestamp = int(one_month_ago.timestamp())
@@ -301,9 +305,7 @@ class AccountManager(LocalStorage):
                         account.AvgPrice[token] = order.Price
                         account.Leverage[token] = order.Leverage 
 
-        self.accounts[address] = account
-        # print("Finished processing order, token_address: {}".format(
-        #       order.Token))        
+        self.accounts[address] = account       
         return
 
 
