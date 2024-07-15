@@ -85,34 +85,17 @@ But you can also send an order to adjust your positions using the following Pyth
 1. open: open a position, you should also specify the direction
 2. close: close a position, this means you will liquidate this position and no longer effect by the token price change.
 
+- leverage: min:0.1 max:20
 - direction: 1/-1 - 1 means long, -1 means short
 
-## Running the Event Subscription Services
+## Get the training data
 
-### Get Training Dataset
+We have already open sourced all the events training data on our huggingface space:
 
-You should obtain the event dataset provide by OpenScope team, these event data is required for training event-driven models and direct you to make trades.
+[Event Trading Dataset](https://huggingface.co/datasets/0xscope/web3-trading-analysis)
 
-You can check our open sourced dataset on huggingface:
+You can also read the descriptions about these data here:
 
-[Event Dataset](https://huggingface.co/datasets/0xscope/web3-trading-analysis)
+[Event Rules](https://huggingface.co/datasets/0xscope/event_rules)
 
-Or you can subscribe the historical events about these 10 tokens for the past 3 months:
-
-To do so, you need to run the following Python script:
-
-    ```bash
-    python src/openscope/miner/event_subscription.py -history
-    ```
-
-Once success, you should have all the events under the openscope/resources folder named historic_events.csv
-
-### Subscribing to Real-Time Events:
-
-To subscribe to real-time events, run the following Python script:
-
-    ```bash
-    python src/openscope/miner/event_subscription.py
-    ```
-
-    Note: You need to keep this process alive, running in the background. Some options are `nohup`.
+Be sure to leverage these data that provided by 0xScope (and 0xScope only) to refine your trading strategies.

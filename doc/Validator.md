@@ -92,6 +92,6 @@ weights for the following uids: [3, 4, 6, 5]
 ..
 ```
 
-This shows that your validator is calculating the weights for miners based on the miner's position ROI conversion rule. You can still customize your own weight calculation logic but running the provide services is effortless and keep you aligned with the most validators.
+This shows that your validator is calculating the weights for miners based on the miner's performance. You can still customize your own weight calculation logic but running the provide services is effortless and keep you aligned with the most validators.
 
 This process will run every config.ini.interval seconds
