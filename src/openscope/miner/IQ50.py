@@ -71,21 +71,24 @@ def get_strategy_trades(latest_trades) -> list:
             tmp_trades.append({
                 "token": token,
                 "position_manager": "open",
-                "direction": get_random_direction()
+                "direction": get_random_direction(),
+                "leverage": 0.1
             })
         else:
             # latest_trades[token]['position_manager'] == 'open'
             tmp_trades.append({
                 "token": token,
                 "position_manager": "close",
-                "direction": latest_trades[token]['Direction']
+                "direction": latest_trades[token]['Direction'],
+                "leverage": 0.1
             })
             direction = get_random_direction()
             if direction != latest_trades[token]['Direction']:
                 tmp_trades.append({
                     "token": token,
                     "position_manager": "open",
-                    "direction": direction
+                    "direction": direction,
+                    "leverage": 0.1
                 })
         result.append(tmp_trades)
     logger.info(json.dumps(result))

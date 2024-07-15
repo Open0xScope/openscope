@@ -77,7 +77,7 @@ class TradeModule(ABC, Module):
             if not is_ethereum_address(token):
                 raise HTTPException(status_code=400, detail=f"The token: {token} is an invalid EVM address")
 
-            leverage = data.get('leverage', 1)
+            leverage = data.get('leverage', 0.1)
             if not self._is_valid_leverage(leverage):
                 raise HTTPException(status_code=400,
                                     detail=f"leverage: {leverage} is an invalid leverage, Need a float value between 0.1 and 20, inclusive, with a precision of 0.1.Examples of valid values: 0.1, 0.2, 1.0, 5.5, 19.9, 20.0.")
