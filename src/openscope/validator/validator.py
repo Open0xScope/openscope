@@ -4,6 +4,7 @@ from datetime import datetime
 import numpy
 import pandas
 import time
+import threading
 import requests
 import sr25519
 from communex.client import CommuneClient
@@ -353,11 +354,16 @@ PROTECT_ADDRESS_TARGET_TIME: {PROTECT_ADDRESS_TARGET_TIME}
 MDD_ELIMINATION_TARGET_TIME: {MDD_ELIMINATION_TARGET_TIME}''')
         Timer(300, self.timer_func).start()
 
+    def start_timer(self):
+        timer_thread = threading.Thread(target=self.timer_func)
+        timer_thread.daemon = True  # 设置为守护线程
+        timer_thread.start()
+
     def validation_loop(self, config: Config | None = None) -> None:
         global ELIMINATE_MINER, ELIMINATE_FILE
         ELIMINATE_FILE = os.path.join(dirname(realpath(__file__)), f'eliminate_{config.validator.get("keyfile")}.json')
         ELIMINATE_MINER = get_eliminate_data(file=ELIMINATE_FILE)
-        self.timer_func()
+        self.start_timer()
         start_task_flag = False
         # Run validation
         while True:
