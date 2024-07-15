@@ -230,6 +230,7 @@ class TradeValidator(Module):
             if not status['status']:
                 continue
             uid = uid_map[address]
+            logger.info(f"{address} is eliminated")
             if uid is None:
                 logger.info(f"{address} is not registered in subnet")
                 continue
