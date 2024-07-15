@@ -213,7 +213,7 @@ class TradeValidator(Module):
                 serenity_value = 0.0
             serenity_data[id] = float(serenity_value)
             mdd_data[id] = float(mdd_value)
-
+            logger.info(f'id: {id}, serenity: {float(serenity_value)}, mdd: {float(mdd_value)}')
         scores = self.generate_scores(mdd_data, serenity_data)
         for address in scores.keys():
             uid = uid_map[address]
@@ -228,15 +228,15 @@ class TradeValidator(Module):
             return {}
 
         elimated_ids = []
-        for address, status in ELIMINATE_MINER.items():
-            if not status['status']:
-                continue
-            uid = uid_map[address]
-            logger.info(f"{address} is eliminated")
-            if uid is None:
-                logger.info(f"{address} is not registered in subnet")
-                continue
-            elimated_ids.append(uid)
+        # for address, status in ELIMINATE_MINER.items():
+        #     if not status['status']:
+        #         continue
+        #     uid = uid_map[address]
+        #     logger.info(f"{address} is eliminated")
+        #     if uid is None:
+        #         logger.info(f"{address} is not registered in subnet")
+        #         continue
+        #     elimated_ids.append(uid)
         if len(self.account_manager.checkpoints) > 2:
             weighted_scores = set_weights(score_dict, self.netuid, self.client, self.key, elimated_ids)
         else:
