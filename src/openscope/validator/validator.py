@@ -16,7 +16,6 @@ from communex._common import get_node_url
 from communex.compat.key import classic_load_key
 from os.path import dirname, realpath
 from loguru import logger
-from psycopg2.extras import execute_values
 from threading import Timer
 
 from config import Config
