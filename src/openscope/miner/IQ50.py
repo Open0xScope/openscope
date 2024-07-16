@@ -27,12 +27,7 @@ from retrying import retry
 
 sys.path.append(f'{dirname(dirname(dirname(dirname(realpath(__file__)))))}')
 from config import Config
-
-DEFAULT_TOKENS = ["0x514910771af9ca656af840dff83e8264ecf986ca", "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
-                  "0x6982508145454ce325ddbe47a25d4ec3d2311933", "0xaea46a60368a7bd060eec7df8cba43b7ef41ad85",
-                  "0x808507121b80c02388fad14726482e061b8da827", "0x9d65ff81a3c488d585bbfb0bfe3c7707c7917f54",
-                  "0x6e2a43be0b1d33b726f0ca3b8de60b3482b8b050", "0xc18360217d8f7ab5e7c516566761ea12ce7f9d72",
-                  "0xa9b1eb5908cfc3cdf91f9b8b3a74108598009096", "0x57e114b691db790c35207b2e685d4a43181e6061"]
+from src.openscope.constants import DEFAULT_SUPPORT_TOKENS
 
 
 @retry(wait_fixed=5000, stop_max_attempt_number=2)
@@ -68,7 +63,7 @@ def get_random_direction():
 
 
 def get_strategy_trades(latest_trades) -> list:
-    random_tokens = random.sample(DEFAULT_TOKENS, 3)
+    random_tokens = random.sample(DEFAULT_SUPPORT_TOKENS, 3)
     result = list()
     for token in random_tokens:
         tmp_trades = list()
@@ -76,21 +71,24 @@ def get_strategy_trades(latest_trades) -> list:
             tmp_trades.append({
                 "token": token,
                 "position_manager": "open",
-                "direction": get_random_direction()
+                "direction": get_random_direction(),
+                "leverage": 0.1
             })
         else:
             # latest_trades[token]['position_manager'] == 'open'
             tmp_trades.append({
                 "token": token,
                 "position_manager": "close",
-                "direction": latest_trades[token]['Direction']
+                "direction": latest_trades[token]['Direction'],
+                "leverage": 0.1
             })
             direction = get_random_direction()
             if direction != latest_trades[token]['Direction']:
                 tmp_trades.append({
                     "token": token,
                     "position_manager": "open",
-                    "direction": direction
+                    "direction": direction,
+                    "leverage": 0.1
                 })
         result.append(tmp_trades)
     logger.info(json.dumps(result))

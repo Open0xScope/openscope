@@ -81,17 +81,16 @@ The successful serve will show the following message:
 
 ```
 ...
-Finished processing order, token_address: 0x6982508145454ce325ddbe47a25d4ec3d2311933
-Finished processing order, token_address: 0x6982508145454ce325ddbe47a25d4ec3d2311933
-5FCeSko1QPXqPj9yB3zQqcDpcgAxEg76XxJMS9T2Wmm283gt roi data: 1.5996246866748436
-5FUFEK2UYiZv716XTHZrVaiJgkXo4HqXhK5YssweeRNohVpU roi data: 0.7172202893071074
-5GQcQTQiWLCZHoTU6s9Wvv1o3ojgkNMte2VqyjDG9heXHEdH roi data: -0.6343400563799548
-5CB63N3xeSJhDDn2oaamQQzZpX5t8GykJ5rdC6aQDKbzZLEU roi data: -0.14057561761578086
-5Hb82dF3EAC9oSApNL3CQt4P86ndYKHQNAWNuTWAceWvS368 roi data: 2.746557003607876
+5FqetfEViLWeiuZ3oLiX9ie6vbVh4Pcjqb9bAuPtR6wkWAWT roi data: 30.43249630436874, latest position_value: 13.043249630436874
+5Dke7ytFLxnoSLwGz3tEx3XzLSu9SqHPkJLigSP2RK7E2hYe roi data: 8.882161741410197, latest position_value: 10.88821617414102
+5Gbxze2jknTzFPNS3VgEUjkdXXzvwnrCWiz7waM5CcwzDSPF roi data: 30.235778720520447, latest position_value: 13.023577872052044
+id: 5GKKY4d6CGqh2JhBZb64kjko2xwTsit8CxPHrn4wxMo1yncz, serenity: -4.857659777745586, mdd: -0.5686277362923495
+id: 5HKUF75DZWNDM4K6zPb4AU3gfscJXFqNEhnnwo6t9tSG2YTQ, serenity: 0.010519085248333325, mdd: -0.3172992833869538
+id: 5Dke7ytFLxnoSLwGz3tEx3XzLSu9SqHPkJLigSP2RK7E2hYe, serenity: 1.746331915903895, mdd: -0.2942847207539201
 weights for the following uids: [3, 4, 6, 5]
 ..
 ```
 
-This shows that your validator is calculating the weights for miners based on the miner's position ROI conversion rule. You can still customize your own weight calculation logic but running the provide services is effortless and keep you aligned with the most validators.
+This shows that your validator is calculating the weights for miners based on the miner's performance. You can still customize your own weight calculation logic but running the provide services is effortless and keep you aligned with the most validators.
 
 This process will run every config.ini.interval seconds

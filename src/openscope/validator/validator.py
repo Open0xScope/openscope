@@ -1,29 +1,46 @@
 import argparse
 import asyncio
-import time
 from datetime import datetime
-from communex._common import get_node_url
-from communex.client import CommuneClient
-from communex.compat.key import check_ss58_address, classic_load_key
-from communex.module.module import Module
-from communex.types import Ss58Address
+import numpy
+import pandas
+import time
+import threading
+import requests
 import sr25519
-from config import Config
+from communex.client import CommuneClient
+from communex.module.module import Module
+from communex.compat.key import check_ss58_address
+from communex.types import Ss58Address
 from substrateinterface import Keypair
-from trade import *
-
+from communex._common import get_node_url
+from communex.compat.key import classic_load_key
+from os.path import dirname, realpath
 from loguru import logger
+from psycopg2.extras import execute_values
+from threading import Timer
+
+from config import Config
+from stats import calculate_serenity
+from trade import *
+from eliminate import *
 
 logger.add("logs/log_{time:YYYY-MM-DD}.log", rotation="1 day")
 
+ELIMINATE_MINER = dict()
+ELIMINATE_FILE = str()
+PROTECT_ADDRESS = list()
+NOT_ACTIVE_ELIMINATION_TARGET_TIME = 0
+COPY_TRADING_ELIMINATION_TARGET_TIME = 0
+PROTECT_ADDRESS_TARGET_TIME = 0
+MDD_ELIMINATION_TARGET_TIME = 0
+DEFAULT_WEIGHT = 5
+
 
 def set_weights(
-    score_dict: dict[int, float], netuid: int, client: CommuneClient, key: Keypair
+        score_dict: dict[int, float], netuid: int, client: CommuneClient, key: Keypair, elimated_ids: list[int]
 ) -> None:
     """
     Set weights for miners based on their scores.
-
-    The lower the score, the higher the weight.
 
     Args:
         score_dict (dict[int, float]): A dictionary mapping miner UIDs to their scores.
@@ -31,55 +48,68 @@ def set_weights(
         client (CommuneClient): The CommuneX client.
         key (Keypair): The keypair for signing transactions.
     """
-    # Create a new dictionary to store the weighted scores
-    sorted_score = sorted(score_dict.items(), key=lambda x: x[1], reverse=True)
-    sorted_ids = [key for key, value in sorted_score]
+    filtered_score_dict = {miner_id: score for miner_id, score in score_dict.items() if miner_id not in elimated_ids}
 
-    total_ids = len(sorted_ids)
-    half_ids = total_ids // 2
-    min_weight = 500 / half_ids
-    max_weight = 3 * min_weight
-    common_diff = (max_weight - min_weight) / (half_ids - 1)
-    weights = [max_weight - i * common_diff for i in range(half_ids)]
+    # Create a new dictionary to store the weighted scores
+    sorted_score = sorted(filtered_score_dict.items(), key=lambda x: x[1], reverse=True)
+    sorted_ids = [key for key, value in sorted_score]
+    total_miners = len(sorted_score)
+
+    if total_miners < 100:
+        top_3_threshold = int(total_miners * 0.03)
+        top_10_threshold = int(total_miners * 0.1)
+        top_25_threshold = int(total_miners * 0.25)
+        top_50_threshold = int(total_miners * 0.5)
+    else:
+        top_3_threshold = 3
+        top_10_threshold = 10
+        top_25_threshold = 25
+        top_50_threshold = 50
 
     # Add the weighted score to the new dictionary
     weighted_scores = {}
-    for i in range(half_ids):
-        weighted_scores[sorted_ids[i]] = int(weights[i])
-    
+    for i, (miner_uid, score) in enumerate(sorted_score):
+        if i < top_3_threshold:
+            total_score_in_group = sum(filtered_score_dict[uid[0]] for uid in sorted_score[:top_3_threshold])
+            weight_share = score / total_score_in_group
+            weighted_scores[miner_uid] = int(weight_share * 0.25 * 1000)
+        elif i < top_10_threshold:
+            total_score_in_group = sum(
+                filtered_score_dict[uid[0]] for uid in sorted_score[top_3_threshold:top_10_threshold])
+            weight_share = score / total_score_in_group
+            weighted_scores[miner_uid] = int(weight_share * 0.25 * 1000)
+        elif i < top_25_threshold:
+            total_score_in_group = sum(
+                filtered_score_dict[uid[0]] for uid in sorted_score[top_10_threshold:top_25_threshold])
+            weight_share = score / total_score_in_group
+            weighted_scores[miner_uid] = int(weight_share * 0.25 * 1000)
+        elif i < top_50_threshold:
+            total_score_in_group = sum(
+                filtered_score_dict[uid[0]] for uid in sorted_score[top_25_threshold:top_50_threshold])
+            weight_share = score / total_score_in_group
+            weighted_scores[miner_uid] = int(weight_share * 0.25 * 1000)
+        else:
+            weighted_scores[miner_uid] = 0
+
     remain_weight = 1000 - sum(weighted_scores.values())
-    for uid in weighted_scores.keys():
+    for item in sorted_score[:top_50_threshold]:
+        uid = item[0]
         score = weighted_scores.get(uid, 0)
-        weighted_scores[uid] = int(score +(remain_weight/half_ids))
-    
+        weighted_scores[uid] = int(score + (remain_weight / top_50_threshold))
 
     # filter out 0 weights
     weighted_scores = {k: v for k, v in weighted_scores.items() if v > 0}
-    uids = list(weighted_scores.keys())        
+    uids = list(weighted_scores.keys())
     weights = list(weighted_scores.values())
 
     logger.info(f"weights for the following uids: {uids}")
     if len(uids) > 0:
         client.vote(key=key, uids=uids, weights=weights, netuid=netuid)
+
+    for id in sorted_ids:
+        if id not in weighted_scores.keys():
+            weighted_scores[id] = 0
     return weighted_scores
-
-
-def _format_data(data: Union[List, Dict, tuple, str]) -> bytes:
-    '''
-    format data to str message
-    :param data:
-    :type data:
-    :return:
-    :rtype:
-    '''
-    if isinstance(data, dict):
-        sorted_data = sorted(data.items(), key=lambda x: x[0])
-        message = ''.join(str(value) for _, value in sorted_data)
-    elif isinstance(data, (list, tuple)):
-        message = ''.join(str(value) for key, value in data)
-    else:
-        message = data
-    return message.encode()
 
 
 def get_netuid(client: CommuneClient, subnet_name: str = "OpenScope"):
@@ -102,21 +132,23 @@ def get_netuid(client: CommuneClient, subnet_name: str = "OpenScope"):
 
 
 class TradeValidator(Module):
-    """A class for calculating roi data using a Synthia network.
+    """A class for calculating roi data using a Openscope network.
     """
 
     def __init__(
-        self,
-        key: Keypair,
-        netuid: int,
-        client: CommuneClient,
-        call_timeout: int = 60,
+            self,
+            key: Keypair,
+            netuid: int,
+            client: CommuneClient,
+            account_manager: AccountManager,
+            call_timeout: int = 60,
     ) -> None:
         super().__init__()
         self.client = client
         self.key = key
         self.netuid = netuid
         self.call_timeout = call_timeout
+        self.account_manager = account_manager
 
     def get_modules(self, client: CommuneClient, netuid: int) -> dict[int, str]:
         """Retrieves all module addresses from the subnet.
@@ -132,98 +164,217 @@ class TradeValidator(Module):
         return module_addreses
 
     async def validate_step(
-        self, config: Config, syntia_netuid: int
+            self, config: Config, netuid: int
     ) -> list[dict[str, str]]:
-        # modules_adresses = self.get_modules(self.client, syntia_netuid)
-        modules_keys = self.client.query_map_key(syntia_netuid)
+        # modules_adresses = self.get_modules(self.client, netuid)
+        modules_keys = self.client.query_map_key(netuid)
         val_ss58 = self.key.ss58_address
         if val_ss58 not in modules_keys.values():
             raise ValueError(
                 f"validator key {val_ss58} is not registered in subnet"
-                )
+            )
         # Validation
         score_dict: dict[int, float] = {}
-        
+
         # == Validation loop / Scoring ==
-        accounts = {}
+        self.account_manager.load_positions_in_memory()
         uid_map = {}
         for uid, address in modules_keys.items():
-            account = init_account(address) 
-            accounts[address] = account
+            account = self.account_manager.accounts.get(address, {})
+            if account == {}:
+                account = init_account()
+                self.account_manager.accounts[address] = account
             uid_map[address] = uid
-        
+
         timestamp = int(time.time())
+        tradetime = self.account_manager.get_update_time()
         pub_key = keypair.public_key.hex()
         msg = f'{val_ss58}{pub_key}{timestamp}'
-        message = _format_data(msg)
+        message = format_data(msg)
         signature = sr25519.sign(  # type: ignore
-                (keypair.public_key, keypair.private_key), message).hex()  # type: ignore
-        orders = get_recent_orders(val_ss58, pub_key, timestamp, signature)
+            (keypair.public_key, keypair.private_key), message).hex()  # type: ignore
+        orders = get_recent_orders(val_ss58, pub_key, timestamp, signature, tradetime)
+        self.account_manager.group_orders_by_day(orders=orders)
         latest_price = get_latest_price(val_ss58, pub_key, timestamp, signature)
-        for order in orders:
-            process_order(accounts, order, latest_price)
-        roi_data = {}
-        win_data = {}
-        for uid, account in accounts.items():
-            if account.FirstTrade > 0:
-                roi, win_rate = evaluate_account(account, latest_price)
-                roi_data[uid] = roi
-                win_data[uid] = win_rate
-                logger.info(f"{uid} roi data: {roi}, win rate: {win_rate}")
-        scores = self.generate_scores(roi_data, win_data)
+
+        roi_data, win_data, position_data = self.account_manager.process_orders_by_day(latest_price, val_ss58, pub_key,
+                                                                                       keypair)
+        serenity_data = {}
+        mdd_data = {}
+        return_data, change_data, mdd_list = self.account_manager.generate_returns()
+        for id, return_list in return_data.items():
+            change_list = change_data[id]
+            if id in mdd_list:
+                continue
+            returns = pandas.Series(return_list)
+            changes = pandas.Series(change_list)
+            serenity_value, mdd_value = calculate_serenity(returns, changes)
+            if numpy.isnan(serenity_value):
+                serenity_value = 0.0
+            serenity_data[id] = float(serenity_value)
+            mdd_data[id] = float(mdd_value)
+            logger.info(f'id: {id}, serenity: {float(serenity_value)}, mdd: {float(mdd_value)}')
+        scores = self.generate_scores(mdd_data, serenity_data)
         for address in scores.keys():
-            # score has to be lower or eq to 1, as one is the best score
             uid = uid_map[address]
             if uid is None:
                 raise ValueError(
-                f"{address} is not registered in subnet"
+                    f"{address} is not registered in subnet"
                 )
             score_dict[uid] = scores.get(address, 0)
 
         if not score_dict:
             logger.info("No miner managed to give a valid answer")
             return {}
-        weighted_scores = set_weights(score_dict, self.netuid, self.client, self.key)
 
-        return weighted_scores
+        elimated_ids = []
+        # for address, status in ELIMINATE_MINER.items():
+        #     if not status['status']:
+        #         continue
+        #     uid = uid_map[address]
+        #     logger.info(f"{address} is eliminated")
+        #     if uid is None:
+        #         logger.info(f"{address} is not registered in subnet")
+        #         continue
+        #     elimated_ids.append(uid)
+        if len(self.account_manager.checkpoints) > 2:
+            weighted_scores = set_weights(score_dict, self.netuid, self.client, self.key, elimated_ids)
+        else:
+            weighted_scores = {}
+            for uid in modules_keys.keys():
+                weighted_scores[uid] = DEFAULT_WEIGHT
+            uids = list(weighted_scores.keys())
+            weights = list(weighted_scores.values())
+            logger.info(f"weights for the following uids: {uids}")
+            self.client.vote(key=self.key, uids=uids, weights=weights, netuid=self.netuid)
+        return weighted_scores, modules_keys, win_data, roi_data
 
-    def generate_scores(self, roi_data: dict[str, float], win_data: dict[str, float]):
+    def generate_scores(self, mdd_data: dict[str, float], serenity_data: dict[str, float]):
         score_dict = {}
-        if roi_data:
-            max_score = max(roi_data.values())
-            min_score = min(roi_data.values())
-            for uid, score in roi_data.items():
-                roi_score = float((score - min_score) / (max_score - min_score))
-                win_score = win_data.get(uid, 0)
-                score = 0.8 * roi_score + 0.2 * win_score
+        if mdd_data:
+            max_serenity = max(serenity_data.values())
+            min_serenity = min(serenity_data.values())
+            for uid, score in mdd_data.items():
+                mdd_value = abs(mdd_data.get(uid, 0)) * 100
+                coffiecient = 1.0
+                if mdd_value > 20:
+                    coffiecient = 0.7
+                elif mdd_value > 10:
+                    coffiecient = 0.9
+                serenity = serenity_data.get(uid, 0.0)
+                serenity_score = float((serenity - min_serenity) / (max_serenity - min_serenity))
+                # win_score = win_data.get(uid, 0)
+                score = serenity_score * coffiecient
                 score_dict[uid] = score
         return score_dict
-    
-    def upload_data(
-        self, data: list[dict[str, str]]
-    ) -> None:
-        """Uploads the validation data.
 
-        Args:
-            data: A dictionary containing the validation data to upload.
-        """
-        max_attempts = 3
-        attempt = 1
-        upload_dict = {"data_list": data}
-        while attempt <= max_attempts:
-            try:
+    @staticmethod
+    def unixtime2str(unixtime=None, t_format='%Y-%m-%d %H:%M:%S', utc=True):
+        if unixtime is None:
+            unixtime = datetime.now().timestamp()
+        unixtime = int(unixtime)
+        if utc:
+            ret = datetime.utcfromtimestamp(unixtime).strftime(t_format)
+        else:
+            ret = datetime.fromtimestamp(unixtime).strftime(t_format)
+        return ret
 
-                # _ = upload_dict()
-                break
-            except requests.exceptions.RequestException as e:
-                logger.info(f"Upload attempt {attempt} failed: {e}")
-                attempt += 1
-                if attempt > max_attempts:
-                    logger.info("Could not upload data. ")
-                    break
-    
+    def task_get_protect_address(self):
+        global ELIMINATE_MINER, PROTECT_ADDRESS
+        logger.info(f"task_get_protect_address begin")
+        PROTECT_ADDRESS = get_protected_miner(keypair)
+        logger.info(f'PROTECT_ADDRESS: {len(PROTECT_ADDRESS)}')
+        for address in PROTECT_ADDRESS:
+            ELIMINATE_MINER[address] = {'status': False, 'timestamp': self.unixtime2str(), 'reason': 'protect_address'}
+        save_eliminate_data(ELIMINATE_MINER, file=ELIMINATE_FILE)
+        logger.info(f"task_get_protect_address end")
+
+    def task_mdd_elimination(self):
+        global ELIMINATE_MINER
+        logger.info(f"task_mdd_elimination begin")
+        address = mdd_elimination(checkpoints=account_manager.checkpoints)
+        roi_data = {}
+        if address:
+            for value in account_manager.checkpoints:
+                last_update = value.last_update
+                rois = value.roi
+                last_update_day = self.unixtime2str(last_update, t_format='%Y-%m-%d')
+                roi_data[last_update_day] = {}
+                for k, roi in rois.items():
+                    if k in address:
+                        roi_data[last_update_day][k] = roi
+
+            logger.info(f'elimination:: mdd_elimination: {address}, roi_data: {roi_data}')
+        else:
+            logger.info(f'mdd_elimination get nothing')
+        eliminate_address = set(address) - set(PROTECT_ADDRESS)
+        for x in eliminate_address:
+            ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'mdd_elimination'}
+        logger.info(f"task_mdd_elimination end")
+
+    def task_copy_trading_elimination(self):
+        global ELIMINATE_MINER
+        logger.info(f"task_copy_trading_elimination begin")
+        copy_maps = copy_trading_elimination(keypair)
+        if copy_maps:
+            logger.info(f'elimination:: copy_trading_elimination: {copy_maps}')
+        else:
+            logger.info(f'copy_trading_elimination get nothing')
+        eliminate_address = set(copy_maps.keys()) - set(PROTECT_ADDRESS)
+        for x in eliminate_address:
+            ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'copy_trading_elimination'}
+        logger.info(f"task_copy_trading_elimination end")
+
+    def task_not_active_elimination(self):
+        global ELIMINATE_MINER
+        logger.info(f"task_not_active_elimination begin")
+        address = not_active_elimination(keypair)
+        if address:
+            logger.info(f'elimination:: not_active_elimination: {address}')
+        else:
+            logger.info(f'not_active_elimination get nothing')
+        eliminate_address = set(address) - set(PROTECT_ADDRESS)
+        for x in eliminate_address:
+            ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'not_active_elimination'}
+        logger.info(f"task_not_active_elimination end")
+
+    def timer_func(self):
+        global NOT_ACTIVE_ELIMINATION_TARGET_TIME, COPY_TRADING_ELIMINATION_TARGET_TIME, PROTECT_ADDRESS_TARGET_TIME, MDD_ELIMINATION_TARGET_TIME
+        current_time = int(time.time())
+        logger.info(f'''timer_func begin''')
+        if current_time >= PROTECT_ADDRESS_TARGET_TIME:
+            self.task_get_protect_address()
+            PROTECT_ADDRESS_TARGET_TIME = current_time + 300
+
+        if current_time >= NOT_ACTIVE_ELIMINATION_TARGET_TIME:
+            self.task_not_active_elimination()
+            NOT_ACTIVE_ELIMINATION_TARGET_TIME = current_time + 900
+
+        if current_time >= COPY_TRADING_ELIMINATION_TARGET_TIME:
+            self.task_copy_trading_elimination()
+            COPY_TRADING_ELIMINATION_TARGET_TIME = current_time + 86400
+
+        if current_time >= MDD_ELIMINATION_TARGET_TIME:
+            self.task_mdd_elimination()
+            MDD_ELIMINATION_TARGET_TIME = current_time + 86400
+        logger.info(f'''timer_func end:
+NOT_ACTIVE_ELIMINATION_TARGET_TIME: {NOT_ACTIVE_ELIMINATION_TARGET_TIME}
+COPY_TRADING_ELIMINATION_TARGET_TIME: {COPY_TRADING_ELIMINATION_TARGET_TIME}
+PROTECT_ADDRESS_TARGET_TIME: {PROTECT_ADDRESS_TARGET_TIME}
+MDD_ELIMINATION_TARGET_TIME: {MDD_ELIMINATION_TARGET_TIME}''')
+        Timer(300, self.timer_func).start()
+
+    def start_timer(self):
+        timer_thread = threading.Thread(target=self.timer_func)
+        timer_thread.daemon = True  # 设置为守护线程
+        timer_thread.start()
 
     def validation_loop(self, config: Config | None = None) -> None:
+        global ELIMINATE_MINER, ELIMINATE_FILE
+        ELIMINATE_FILE = os.path.join(dirname(realpath(__file__)), f'eliminate_{config.validator.get("keyfile")}.json')
+        ELIMINATE_MINER = get_eliminate_data(file=ELIMINATE_FILE)
+        self.start_timer()
+        start_task_flag = False
         # Run validation
         while True:
             start_time = time.time()
@@ -231,13 +382,18 @@ class TradeValidator(Module):
             print(f"check validator time: {formatted_start_time}")
             weighted_scores = asyncio.run(self.validate_step(config, self.netuid))
             print(f"vote data: {weighted_scores}")
+            if not start_task_flag:
+                logger.info(f'start task exec task_mdd_elimination')
+                self.task_mdd_elimination()
+                start_task_flag = True
             invertal = int(config.validator.get("interval"))
             time.sleep(invertal)
-                
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="transaction validator")
     parser.add_argument("--config", type=str, default=None, help="config file path")
-    args = parser.parse_args()  
+    args = parser.parse_args()
 
     if args.config is None:
         default_config_path = 'env/config.ini'
@@ -247,13 +403,15 @@ if __name__ == '__main__':
     config = Config(config_file=config_file)
     use_testnet = True if config.validator.get("testnet") == "1" else False
     c_client = CommuneClient(get_node_url(use_testnet=use_testnet))
-    synthia_uid = get_netuid(c_client)
+    net_uid = get_netuid(c_client)
     keypair = classic_load_key(config.validator.get("keyfile"))
 
+    account_manager = AccountManager(config=config, logger=logger)
     validator = TradeValidator(
-        keypair, 
-        synthia_uid, 
-        c_client, 
+        keypair,
+        net_uid,
+        c_client,
+        account_manager,
         call_timeout=60,
     )
     validator.validation_loop(config)
