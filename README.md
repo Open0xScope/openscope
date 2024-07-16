@@ -29,43 +29,6 @@ In the fast-paced world of cryptocurrency, staying ahead of the game is crucial.
 
 OpenScope harnesses the power of 0xScope's comprehensive cryptocurrency event dataset to train cutting-edge, event-driven trading models. By leveraging a diverse range of on-chain data, technical analysis, and news events, such as exchange deposits/withdrawals, project collaborations, and influencer signals, OpenScope empowers miners to develop highly performant AI models that predict potential price movements with unparalleled accuracy.
 
-## How OpenScope V2 works
-
-The OpenScope Subnet will have 3 phase, with different miner tasks & validator tasks, right now we are in Phase 1.
-
-### Phase 1
-
-Phase 1 will be the beta version of OpenScope, as a cold start we want to OpenScope to be more friendly to participants, the requirements for miners and validators are less intense.
-
-Miners are required to send cryptocurrency trades based on provided live token events.
-
-This can do done by subscribe our live event feed.
-
-These trades should be based on the AI trading model trained with the provided history token events.
-
-We have already open sourced all the events training data on our huggingface space:
-
-[Event Trading Dataset](https://huggingface.co/datasets/0xscope/web3-trading-analysis)
-
-You can also read the descriptions about these data here:
-
-[Event Rules](https://huggingface.co/datasets/0xscope/event_rules)
-
-Validators will calculated each miner's performance score based on each miner's trades in each cycle.
-
-In a nutshell, the scores will be based on:
-
-1. Each miner's ROI
-2. Each miner's win rate
-
-A trade is considered "Win" if the return of this trade after 4 hours is positive.
-
-Win rate is considered important because we expect the trades are based on these events, instead of other trading strategies.
-
-These performances scores will used as each miner's performance to assign weights, the higher the value, the higher the weights.
-
-These weights will eventually decide the incentive of each miner, to be specifically the commune token they gets.
-
 ## Motivation
 
 OpenScope - Unleashing the Power of Decentralized AI for Crypto Trading with OpenScope
