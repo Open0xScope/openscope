@@ -262,7 +262,10 @@ class TradeValidator(Module):
                 elif mdd_value > 10:
                     coffiecient = 0.9
                 serenity = serenity_data.get(uid, 0.0)
-                serenity_score = float((serenity - min_serenity) / (max_serenity - min_serenity))
+                if max_serenity > min_serenity:
+                    serenity_score = float((serenity - min_serenity) / (max_serenity - min_serenity))
+                else:
+                    serenity_score = 0.0
                 # win_score = win_data.get(uid, 0)
                 score = serenity_score * coffiecient
                 score_dict[uid] = score
