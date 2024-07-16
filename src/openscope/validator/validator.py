@@ -241,7 +241,7 @@ class TradeValidator(Module):
             weighted_scores = set_weights(score_dict, self.netuid, self.client, self.key, elimated_ids)
         else:
             weighted_scores = {}
-            for uid in modules_keys.keys():
+            for uid in score_dict.keys():
                 weighted_scores[uid] = DEFAULT_WEIGHT
             uids = list(weighted_scores.keys())
             weights = list(weighted_scores.values())
