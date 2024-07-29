@@ -130,6 +130,8 @@ def copy_trading_elimination(keypair) -> dict:
                 continue
             df_1 = df[df['MinerId'] == t1_miner]
             df_2 = df[df['MinerId'] == t2_miner]
+            if df_1.shape[0] < 5 or df_2.shape[0] < 5:
+                continue
             if check_copy_trading(df_1, df_2):
                 # print(t1_miner, t2_miner)
                 result[t1_miner] = t2_miner
@@ -200,6 +202,8 @@ def get_eliminate_data(file=None):
         file = os.path.join(dirname(realpath(__file__)), 'eliminate.json')
     if not os.path.exists(file):
         return result
+    if (int(time.time()) - int(os.path.getmtime(file))) > 7 * 86400:
+        return result
     with open(file, 'r') as fd:
         data = fd.read() or '{}'
         result = json.loads(data)
@@ -210,10 +214,10 @@ def main():
     keypair = classic_load_key('test1')
     # print(not_active_elimination(keypair))
     # print(get_protected_miner(keypair))
-    # print(get_eliminate_data())
+    print(get_eliminate_data())
     # print(copy_trading_elimination(keypair))
     # save_eliminate_data({'a':True,'b':False})
-    print(mdd_elimination([]))
+    # print(mdd_elimination([]))
 
 
 if __name__ == '__main__':

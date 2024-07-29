@@ -227,15 +227,15 @@ class TradeValidator(Module):
             return {}
 
         elimated_ids = []
-        # for address, status in ELIMINATE_MINER.items():
-        #     if not status['status']:
-        #         continue
-        #     uid = uid_map[address]
-        #     logger.info(f"{address} is eliminated")
-        #     if uid is None:
-        #         logger.info(f"{address} is not registered in subnet")
-        #         continue
-        #     elimated_ids.append(uid)
+        for address, status in ELIMINATE_MINER.items():
+            if not status['status']:
+                continue
+            uid = uid_map[address]
+            logger.info(f"{address} is eliminated")
+            if uid is None:
+                logger.info(f"{address} is not registered in subnet")
+                continue
+            elimated_ids.append(uid)
         if len(self.account_manager.checkpoints) > 2:
             weighted_scores = set_weights(score_dict, self.netuid, self.client, self.key, elimated_ids)
         else:
@@ -311,7 +311,8 @@ class TradeValidator(Module):
             logger.info(f'mdd_elimination get nothing')
         eliminate_address = set(address) - set(PROTECT_ADDRESS)
         for x in eliminate_address:
-            ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'mdd_elimination'}
+            if x not in ELIMINATE_MINER or not ELIMINATE_MINER[x]['status']:
+                ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'mdd_elimination'}
         logger.info(f"task_mdd_elimination end")
 
     def task_copy_trading_elimination(self):
@@ -324,7 +325,8 @@ class TradeValidator(Module):
             logger.info(f'copy_trading_elimination get nothing')
         eliminate_address = set(copy_maps.keys()) - set(PROTECT_ADDRESS)
         for x in eliminate_address:
-            ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'copy_trading_elimination'}
+            if x not in ELIMINATE_MINER or not ELIMINATE_MINER[x]['status']:
+                ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'copy_trading_elimination'}
         logger.info(f"task_copy_trading_elimination end")
 
     def task_not_active_elimination(self):
@@ -337,7 +339,8 @@ class TradeValidator(Module):
             logger.info(f'not_active_elimination get nothing')
         eliminate_address = set(address) - set(PROTECT_ADDRESS)
         for x in eliminate_address:
-            ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'not_active_elimination'}
+            if x not in ELIMINATE_MINER or not ELIMINATE_MINER[x]['status']:
+                ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'not_active_elimination'}
         logger.info(f"task_not_active_elimination end")
 
     def timer_func(self):
