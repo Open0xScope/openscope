@@ -227,15 +227,15 @@ class TradeValidator(Module):
             return {}
 
         elimated_ids = []
-        # for address, status in ELIMINATE_MINER.items():
-        #     if not status['status']:
-        #         continue
-        #     uid = uid_map[address]
-        #     logger.info(f"{address} is eliminated")
-        #     if uid is None:
-        #         logger.info(f"{address} is not registered in subnet")
-        #         continue
-        #     elimated_ids.append(uid)
+        for address, status in ELIMINATE_MINER.items():
+            if not status['status']:
+                continue
+            uid = uid_map[address]
+            logger.info(f"{address} is eliminated")
+            if uid is None:
+                logger.info(f"{address} is not registered in subnet")
+                continue
+            elimated_ids.append(uid)
         if len(self.account_manager.checkpoints) > 2:
             weighted_scores = set_weights(score_dict, self.netuid, self.client, self.key, elimated_ids)
         else:
