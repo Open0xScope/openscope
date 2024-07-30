@@ -350,7 +350,7 @@ class TradeValidator(Module):
 
         if current_time >= NOT_ACTIVE_ELIMINATION_TARGET_TIME:
             self.task_not_active_elimination()
-            NOT_ACTIVE_ELIMINATION_TARGET_TIME = current_time + 900
+            NOT_ACTIVE_ELIMINATION_TARGET_TIME = current_time + 86400
 
         if current_time >= COPY_TRADING_ELIMINATION_TARGET_TIME:
             self.task_copy_trading_elimination()
