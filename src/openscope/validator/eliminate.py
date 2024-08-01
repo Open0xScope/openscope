@@ -143,6 +143,8 @@ def filter_groups_mdd_elimination(group):
     total_count = 0
     for roi in group['roi']:
         if roi <= -50:
+            return True
+        elif -50 < roi <= -25:
             consecutive_count += 1
             total_count += 1
             if consecutive_count >= 2 or total_count >= 5:
