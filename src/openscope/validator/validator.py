@@ -358,7 +358,7 @@ class TradeValidator(Module):
 
         if current_time >= MDD_ELIMINATION_TARGET_TIME:
             self.task_mdd_elimination()
-            MDD_ELIMINATION_TARGET_TIME = current_time + 86400
+            MDD_ELIMINATION_TARGET_TIME = current_time + 3600
         logger.info(f'''timer_func end:
 NOT_ACTIVE_ELIMINATION_TARGET_TIME: {NOT_ACTIVE_ELIMINATION_TARGET_TIME}
 COPY_TRADING_ELIMINATION_TARGET_TIME: {COPY_TRADING_ELIMINATION_TARGET_TIME}
