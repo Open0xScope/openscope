@@ -138,13 +138,11 @@ def copy_trading_elimination(keypair) -> dict:
     return result
 
 
-def filter_groups_mdd_elimination(group):
+def filter_groups_roi_elimination(group):
     consecutive_count = 0
     total_count = 0
     for roi in group['roi']:
-        if roi <= -50:
-            return True
-        elif -50 < roi <= -25:
+        if roi < -50:
             consecutive_count += 1
             total_count += 1
             if consecutive_count >= 2 or total_count >= 5:
@@ -154,7 +152,7 @@ def filter_groups_mdd_elimination(group):
     return False
 
 
-def mdd_elimination(checkpoints) -> list:
+def roi_elimination(checkpoints) -> list:
     data = list()
     for value in checkpoints:
         last_update = value.last_update
@@ -178,8 +176,13 @@ def mdd_elimination(checkpoints) -> list:
     filtered_df = df[df['last_update'] >= check_time]
     filtered_df = filtered_df.sort_values(by='last_update', ascending=False).groupby(
         ['address', 'last_update_day']).first().reset_index()
-    filtered_result = filtered_df.groupby('address').filter(filter_groups_mdd_elimination)
+    filtered_result = filtered_df.groupby('address').filter(filter_groups_roi_elimination)
     unique_miner_ids = list(filtered_result['address'].unique())
+    return unique_miner_ids
+
+
+def mdd_elimination(mdd_data) -> list:
+    unique_miner_ids = [key for key, value in mdd_data.items() if value < -0.5]
     return unique_miner_ids
 
 
@@ -213,13 +216,13 @@ def get_eliminate_data(file=None):
 
 
 def main():
-    keypair = classic_load_key('test1')
+    keypair = classic_load_key('validator_11')
     # print(not_active_elimination(keypair))
     # print(get_protected_miner(keypair))
-    print(get_eliminate_data())
+    # print(get_eliminate_data())
     # print(copy_trading_elimination(keypair))
     # save_eliminate_data({'a':True,'b':False})
-    # print(mdd_elimination([]))
+    print(roi_elimination([]))
 
 
 if __name__ == '__main__':
