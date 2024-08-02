@@ -4,6 +4,7 @@ from datetime import datetime
 import numpy
 import pandas
 import time
+import copy
 import threading
 import requests
 import sr25519
@@ -27,11 +28,13 @@ logger.add("logs/log_{time:YYYY-MM-DD}.log", rotation="1 day")
 
 ELIMINATE_MINER = dict()
 ELIMINATE_FILE = str()
+MDD_DATA = dict()
 PROTECT_ADDRESS = list()
 NOT_ACTIVE_ELIMINATION_TARGET_TIME = 0
 COPY_TRADING_ELIMINATION_TARGET_TIME = 0
 PROTECT_ADDRESS_TARGET_TIME = 0
 MDD_ELIMINATION_TARGET_TIME = 0
+ROI_ELIMINATION_TARGET_TIME = 0
 DEFAULT_WEIGHT = 5
 
 
@@ -200,6 +203,7 @@ class TradeValidator(Module):
                                                                                        keypair)
         serenity_data = {}
         mdd_data = {}
+        global MDD_DATA
         return_data, change_data, mdd_list = self.account_manager.generate_returns()
         for id, return_list in return_data.items():
             change_list = change_data[id]
@@ -213,13 +217,22 @@ class TradeValidator(Module):
             serenity_data[id] = float(serenity_value)
             mdd_data[id] = float(mdd_value)
             logger.info(f'id: {id}, serenity: {float(serenity_value)}, mdd: {float(mdd_value)}')
+        MDD_DATA = copy.copy(mdd_data)
+        # add eliminated address
         scores = self.generate_scores(mdd_data, serenity_data)
+        for id in return_data.keys():
+            if id in mdd_list or id in ELIMINATE_MINER.keys():
+                scores[id] = 0.0
+        
         for address in scores.keys():
-            uid = uid_map[address]
+            if address == self.key.ss58_address:
+                continue
+            uid = uid_map.get(address)
             if uid is None:
-                raise ValueError(
+                logger.info(
                     f"{address} is not registered in subnet"
                 )
+                continue
             score_dict[uid] = scores.get(address, 0)
 
         if not score_dict:
@@ -230,7 +243,7 @@ class TradeValidator(Module):
         for address, status in ELIMINATE_MINER.items():
             if not status['status']:
                 continue
-            uid = uid_map[address]
+            uid = uid_map.get(address)
             logger.info(f"{address} is eliminated")
             if uid is None:
                 logger.info(f"{address} is not registered in subnet")
@@ -294,7 +307,22 @@ class TradeValidator(Module):
     def task_mdd_elimination(self):
         global ELIMINATE_MINER
         logger.info(f"task_mdd_elimination begin")
-        address = mdd_elimination(checkpoints=account_manager.checkpoints)
+        address = mdd_elimination(mdd_data=MDD_DATA)
+        if address:
+            mdd_data = {x: MDD_DATA.get(x) for x in address}
+            logger.info(f'elimination:: mdd_elimination: {address}, mdd_data: {mdd_data}')
+        else:
+            logger.info(f'mdd_elimination get nothing')
+        eliminate_address = set(address) - set(PROTECT_ADDRESS)
+        for x in eliminate_address:
+            if x not in ELIMINATE_MINER or not ELIMINATE_MINER[x]['status']:
+                ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'mdd_elimination'}
+        logger.info(f"task_mdd_elimination end")
+
+    def task_roi_elimination(self):
+        global ELIMINATE_MINER
+        logger.info(f"task_roi_elimination begin")
+        address = roi_elimination(checkpoints=account_manager.checkpoints)
         roi_data = {}
         if address:
             for value in account_manager.checkpoints:
@@ -306,14 +334,14 @@ class TradeValidator(Module):
                     if k in address:
                         roi_data[last_update_day][k] = roi
 
-            logger.info(f'elimination:: mdd_elimination: {address}, roi_data: {roi_data}')
+            logger.info(f'elimination:: roi_elimination: {address}, roi_data: {roi_data}')
         else:
-            logger.info(f'mdd_elimination get nothing')
+            logger.info(f'roi_elimination get nothing')
         eliminate_address = set(address) - set(PROTECT_ADDRESS)
         for x in eliminate_address:
             if x not in ELIMINATE_MINER or not ELIMINATE_MINER[x]['status']:
-                ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'mdd_elimination'}
-        logger.info(f"task_mdd_elimination end")
+                ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'roi_elimination'}
+        logger.info(f"task_roi_elimination end")
 
     def task_copy_trading_elimination(self):
         global ELIMINATE_MINER
@@ -344,7 +372,7 @@ class TradeValidator(Module):
         logger.info(f"task_not_active_elimination end")
 
     def timer_func(self):
-        global NOT_ACTIVE_ELIMINATION_TARGET_TIME, COPY_TRADING_ELIMINATION_TARGET_TIME, PROTECT_ADDRESS_TARGET_TIME, MDD_ELIMINATION_TARGET_TIME
+        global NOT_ACTIVE_ELIMINATION_TARGET_TIME, COPY_TRADING_ELIMINATION_TARGET_TIME, PROTECT_ADDRESS_TARGET_TIME, MDD_ELIMINATION_TARGET_TIME, ROI_ELIMINATION_TARGET_TIME
         current_time = int(time.time())
         logger.info(f'''timer_func begin''')
         if current_time >= PROTECT_ADDRESS_TARGET_TIME:
@@ -361,12 +389,18 @@ class TradeValidator(Module):
 
         if current_time >= MDD_ELIMINATION_TARGET_TIME:
             self.task_mdd_elimination()
-            MDD_ELIMINATION_TARGET_TIME = current_time + 86400
+            MDD_ELIMINATION_TARGET_TIME = current_time + 3600
+
+        if current_time >= ROI_ELIMINATION_TARGET_TIME:
+            self.task_roi_elimination()
+            ROI_ELIMINATION_TARGET_TIME = current_time + 86400
+
         logger.info(f'''timer_func end:
 NOT_ACTIVE_ELIMINATION_TARGET_TIME: {NOT_ACTIVE_ELIMINATION_TARGET_TIME}
 COPY_TRADING_ELIMINATION_TARGET_TIME: {COPY_TRADING_ELIMINATION_TARGET_TIME}
 PROTECT_ADDRESS_TARGET_TIME: {PROTECT_ADDRESS_TARGET_TIME}
-MDD_ELIMINATION_TARGET_TIME: {MDD_ELIMINATION_TARGET_TIME}''')
+MDD_ELIMINATION_TARGET_TIME: {MDD_ELIMINATION_TARGET_TIME}
+ROI_ELIMINATION_TARGET_TIME: {ROI_ELIMINATION_TARGET_TIME}''')
         Timer(300, self.timer_func).start()
 
     def start_timer(self):
