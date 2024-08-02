@@ -218,13 +218,21 @@ class TradeValidator(Module):
             mdd_data[id] = float(mdd_value)
             logger.info(f'id: {id}, serenity: {float(serenity_value)}, mdd: {float(mdd_value)}')
         MDD_DATA = copy.copy(mdd_data)
+        # add eliminated address
         scores = self.generate_scores(mdd_data, serenity_data)
+        for id in return_data.keys():
+            if id in mdd_list or id in ELIMINATE_MINER.keys():
+                scores[id] = 0.0
+        
         for address in scores.keys():
-            uid = uid_map[address]
+            if address == self.key.ss58_address:
+                continue
+            uid = uid_map.get(address)
             if uid is None:
-                raise ValueError(
+                logger.info(
                     f"{address} is not registered in subnet"
                 )
+                continue
             score_dict[uid] = scores.get(address, 0)
 
         if not score_dict:
@@ -235,7 +243,7 @@ class TradeValidator(Module):
         for address, status in ELIMINATE_MINER.items():
             if not status['status']:
                 continue
-            uid = uid_map[address]
+            uid = uid_map.get(address)
             logger.info(f"{address} is eliminated")
             if uid is None:
                 logger.info(f"{address} is not registered in subnet")
