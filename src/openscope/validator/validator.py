@@ -195,7 +195,9 @@ class TradeValidator(Module):
         message = format_data(msg)
         signature = sr25519.sign(  # type: ignore
             (keypair.public_key, keypair.private_key), message).hex()  # type: ignore
+        logger.info(f'fetch recent orders start, timestamp: {tradetime}')
         orders = get_recent_orders(val_ss58, pub_key, timestamp, signature, tradetime)
+        logger.info(f'fetch recent orders: {len(orders)}')
         self.account_manager.group_orders_by_day(orders=orders)
         latest_price = get_latest_price(val_ss58, pub_key, timestamp, signature)
 

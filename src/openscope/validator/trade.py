@@ -8,6 +8,8 @@ import sr25519
 from substrateinterface import Keypair 
 from config import Config
 from storage import LocalStorage
+import urllib3
+from urllib3.util.retry import Retry
 
 DEFAULT_TOKENS = ['0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f', '0xfaba6f8e4a5e8ab82f62fe7c39859fa577269be3',
                   '0x4d224452801aced8b2f0aebe155379bb5d594381', '0x5283d291dbcf85356a21ba090e6db59121208b44',
@@ -85,6 +87,14 @@ class AccountManager(LocalStorage):
     def __init__(self, config=None, logger=None):
         super().__init__(config=config, logger=logger)
         self.checkpoints = []
+    
+    def del_account(self, address:str):
+        account = init_account()
+        self.accounts[address] = account
+        for checkpoint in self.checkpoints:
+            checkpoint.cur_ret.pop(address, None)
+            checkpoint.prev_ret.pop(address, None)
+            checkpoint.roi.pop(address, None) 
     
     def group_orders_by_day(self, orders: List[Order]) -> None:
         for order in orders:
@@ -393,37 +403,55 @@ def get_recent_orders(addr: str, pub_key: str, timestamp: int, signature: str, t
     config_file = 'env/config.ini'
     config = Config(config_file)
     url = config.api.get("url") + "getalltrades"
-    params = {
-        "userId": addr,
-        "pubKey": pub_key,
-        "timestamp": timestamp,
-        "sig": signature,
-    }
-    if tradetime > 0:
-        params["tradetime"] = tradetime
-    resp = requests.get(url, params=params, timeout=25)
-    if resp.status_code != 200:
-        return []
-    json_resp = json.loads(resp.text)
     order_list = []
-    if json_resp.get("code") == 200 and json_resp.get("data"):
-        for order_data in json_resp["data"]:
-            order = Order(
-                MinerId=order_data.get("MinerID", ""),
-                Token=order_data.get("TokenAddress", ""),
-                isClose=(order_data.get("PositionManager", "") == "close"),
-                Direction=order_data.get("Direction", 0),
-                Nonce=order_data.get("Nonce", 0),
-                Price=order_data.get("TradePrice", 0),
-                Price4H=order_data.get("TradePrice4H", 0),
-                TimeStamp=order_data.get("Timestamp", 0),
-                Leverage=order_data.get("Leverage", 1),
-            )
-            order_list.append(order)
+    page = 1
+    limit = 5000
+
+    while True:
+        params = {
+            "userId": addr,
+            "pubKey": pub_key,
+            "timestamp": timestamp,
+            "sig": signature,
+            "page": page,
+            "limit": limit,
+        }
+        if tradetime > 0:
+            params["tradetime"] = tradetime
+        retries = Retry(total=3, backoff_factor=0.1, status_forcelist=[429, 500, 502, 503, 504])
+        http = urllib3.PoolManager(retries=retries)
+        try:
+            resp = http.request('GET', url, fields=params)
+            # resp = requests.get(url, params=params, timeout=360)
+            if resp.status != 200:
+                return order_list
+        except urllib3.exceptions.MaxRetryError as e:
+            print(f"http error: {e}")
+            return order_list
+
+        json_resp = json.loads(resp.data)
+        if json_resp.get("code") == 200 and json_resp.get("data"):
+            orders = json_resp["data"]
+            for order_data in orders:
+                order = Order(
+                    MinerId=order_data.get("MinerID", ""),
+                    Token=order_data.get("TokenAddress", ""),
+                    isClose=(order_data.get("PositionManager", "") == "close"),
+                    Direction=order_data.get("Direction", 0),
+                    Nonce=order_data.get("Nonce", 0),
+                    Price=order_data.get("TradePrice", 0),
+                    Price4H=order_data.get("TradePrice4H", 0),
+                    TimeStamp=order_data.get("Timestamp", 0),
+                    Leverage=order_data.get("Leverage", 1),
+                )
+                order_list.append(order)
+                
+            if len(orders) < limit:
+                break
+        page += 1
+    if len(order_list) > 0:
         order_list.sort(key=lambda x: x.TimeStamp)
-        return order_list
-    else:
-        return []
+    return order_list
 
 
 def get_miner_registertime(addr: str, pub_key: str, timestamp: int, signature: str, starttime: int) -> dict:
