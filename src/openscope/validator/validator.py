@@ -315,6 +315,8 @@ class TradeValidator(Module):
             logger.info(f'mdd_elimination get nothing')
         eliminate_address = set(address) - set(PROTECT_ADDRESS)
         for x in eliminate_address:
+            self.account_manager.del_account(address=x)
+            logger.info(f'task_mdd_elimination address del_account: {x}')
             if x not in ELIMINATE_MINER or not ELIMINATE_MINER[x]['status']:
                 ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'mdd_elimination'}
         logger.info(f"task_mdd_elimination end")
@@ -339,6 +341,8 @@ class TradeValidator(Module):
             logger.info(f'roi_elimination get nothing')
         eliminate_address = set(address) - set(PROTECT_ADDRESS)
         for x in eliminate_address:
+            self.account_manager.del_account(address=x)
+            logger.info(f'task_roi_elimination address del_account: {x}')
             if x not in ELIMINATE_MINER or not ELIMINATE_MINER[x]['status']:
                 ELIMINATE_MINER[x] = {'status': True, 'timestamp': self.unixtime2str(), 'reason': 'roi_elimination'}
         logger.info(f"task_roi_elimination end")
