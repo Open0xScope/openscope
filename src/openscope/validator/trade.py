@@ -113,7 +113,7 @@ class AccountManager(LocalStorage):
         self.checkpoints = sorted(self.checkpoints, key=lambda checkpoint: checkpoint.last_update)
         return
 
-    def process_orders_by_day(self, latest_price: Dict[str, float], addr: str, pub_key: str, keypair: Keypair):
+    def process_orders_by_day(self, addr: str, pub_key: str, keypair: Keypair):
         if len(self.checkpoints) == 0:
             return {}, {}, {}
         
@@ -134,7 +134,6 @@ class AccountManager(LocalStorage):
                     self.logger.error(f'get token price error')
                 for order in checkpoint.orders:
                     self.process_order(order, current_price)
-
                 for id, account in self.accounts.items():
                     if account.FirstTrade > 0:
                         formatted_time = datetime.fromtimestamp(float(checkpoint.last_update)).strftime('%Y-%m-%d %H:%M:%S')
@@ -154,7 +153,16 @@ class AccountManager(LocalStorage):
         checkpoint = self.checkpoints[-1]
         roi_data = {}
         win_data = {}
-        position_data = {}
+        timestamp = int(time.time())
+        msg = f'{addr}{pub_key}{timestamp}'
+        message = format_data(msg)
+        signature = sr25519.sign(  # type: ignore
+            (keypair.public_key, keypair.private_key), message).hex()
+        current_timestamp = checkpoint.last_update + 24*3600
+        if current_timestamp < timestamp:
+            latest_price = get_latest_price(addr, pub_key, timestamp, signature, current_timestamp)
+        else:
+            latest_price = get_latest_price(addr, pub_key, timestamp, signature)
         for order in checkpoint.orders:
             if order.Nonce not in checkpoint.processed:
                 self.process_order(order, latest_price)
@@ -165,7 +173,6 @@ class AccountManager(LocalStorage):
                 position_value = roi * account.InitialBalance / 100 + account.InitialBalance
                 roi_data[id] = roi
                 win_data[id] = win_rate
-                position_data[id] = position
                 checkpoint.cur_ret[id] = position_value
                 checkpoint.roi[id] = roi
                 if len(self.checkpoints) == 1:
@@ -178,13 +185,12 @@ class AccountManager(LocalStorage):
         
         self.update_time = checkpoint.last_update
         # delete old checkpoint
-        one_month_ago = datetime.now(tz=UTC) - timedelta(days=30)
-        one_month_ago_timestamp = int(one_month_ago.timestamp())
-
-        self.checkpoints = [checkpoint for checkpoint in self.checkpoints 
-                           if checkpoint.last_update >= one_month_ago_timestamp]
+        if len(self.checkpoints) > 30:
+            self.checkpoints = self.checkpoints[-30:]
+        
         #write to disk
-        return roi_data, win_data, position_data
+        return roi_data, win_data
+
     
     def generate_returns(self):
         result = {}
@@ -209,10 +215,6 @@ class AccountManager(LocalStorage):
     def process_order(self, order: Order, latest_price: Dict[str, float]):
         address = order.MinerId
         token = order.Token
-        # test
-        # if address != '5D7EAkqrTcwWwJkZj4aQMqoKZSuk9sUYn881QTtGPFVfdsrP':
-        #     return
-        
         # validate miner
         if address not in self.accounts.keys():
             return
@@ -322,7 +324,6 @@ class AccountManager(LocalStorage):
 def evaluate_account(account: Account, prices: Dict[str, float]):
     unrealized: float = 0
     position = {}
-    # prices = get_latest_price()
     for token, asset in account.Portfolio.items():
         latest_price = prices.get(token, 0)
         token_balance = asset.get("asset", 0)
@@ -385,19 +386,25 @@ def get_latest_price(addr: str, pub_key: str, timestamp: int, signature: str, la
     } 
     if latesttime > 0: 
         params["latesttime"] = latesttime
-    resp = requests.get(url, params=params, timeout=25)
-    if resp.status_code != 200:
-        return {}
-    json_resp = json.loads(resp.text)
-    if json_resp.get("code") == 200 and json_resp.get("data"):
-        result = {}
-        for price_data in json_resp["data"]:
-            price = price_data['Price']
-            token = price_data['TokenAddress']
-            result[token] = price
-        return result
-    else:
-        return {}
+    while True:
+        try:     
+            resp = requests.get(url, params=params, timeout=60)
+            if resp.status_code != 200:
+                print(f"get price error: {resp.status_code}")
+                time.sleep(5)
+                continue
+        except Exception as e:
+                print(f"http error: {e}")
+                time.sleep(10)
+                continue
+        json_resp = json.loads(resp.text)
+        if json_resp.get("code") == 200 and json_resp.get("data"):
+            result = {}
+            for price_data in json_resp["data"]:
+                price = price_data['Price']
+                token = price_data['TokenAddress']
+                result[token] = price
+            return result
     
 def get_recent_orders(addr: str, pub_key: str, timestamp: int, signature: str, tradetime: int = 0) -> Union[List, None]:
     config_file = 'env/config.ini'
@@ -418,20 +425,20 @@ def get_recent_orders(addr: str, pub_key: str, timestamp: int, signature: str, t
         }
         if tradetime > 0:
             params["tradetime"] = tradetime
-        retries = Retry(total=3, backoff_factor=0.1, status_forcelist=[429, 500, 502, 503, 504])
-        http = urllib3.PoolManager(retries=retries)
         try:
-            resp = http.request('GET', url, fields=params)
-            # resp = requests.get(url, params=params, timeout=360)
-            if resp.status != 200:
-                return order_list
-        except urllib3.exceptions.MaxRetryError as e:
+            resp = requests.get(url, params=params, timeout=60)
+            if resp.status_code != 200:
+                print(f"get trades error: {resp.status_code}, retry page: {page}")
+                time.sleep(10)
+                continue
+            json_resp = json.loads(resp.text)
+        except Exception as e:
             print(f"http error: {e}")
             return order_list
 
-        json_resp = json.loads(resp.data)
         if json_resp.get("code") == 200 and json_resp.get("data"):
             orders = json_resp["data"]
+            print(f"fetch data page: {page}")
             for order_data in orders:
                 order = Order(
                     MinerId=order_data.get("MinerID", ""),

@@ -199,10 +199,8 @@ class TradeValidator(Module):
         orders = get_recent_orders(val_ss58, pub_key, timestamp, signature, tradetime)
         logger.info(f'fetch recent orders: {len(orders)}')
         self.account_manager.group_orders_by_day(orders=orders)
-        latest_price = get_latest_price(val_ss58, pub_key, timestamp, signature)
 
-        roi_data, win_data, position_data = self.account_manager.process_orders_by_day(latest_price, val_ss58, pub_key,
-                                                                                       keypair)
+        roi_data, win_data = self.account_manager.process_orders_by_day(val_ss58, pub_key, keypair)
         serenity_data = {}
         mdd_data = {}
         global MDD_DATA
